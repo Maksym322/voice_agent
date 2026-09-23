@@ -53,6 +53,17 @@ class IsolatedStack:
         )
 
     def compose(self, *args: str, input_text: str | None = None) -> str:
+        environment = os.environ.copy()
+        for key in (
+            "POSTGRES_PASSWORD",
+            "DATABASE_URL",
+            "APP_ORIGIN",
+            "ENVIRONMENT",
+            "SESSION_SECURE_COOKIE",
+            "WEB_PORT",
+            "DB_PORT",
+        ):
+            environment.pop(key, None)
         command = [
             self.docker or "docker",
             "compose",
@@ -70,6 +81,7 @@ class IsolatedStack:
             input=input_text,
             text=True,
             capture_output=True,
+            env=environment,
             timeout=600,
             check=False,
         )
