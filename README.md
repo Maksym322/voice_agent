@@ -80,5 +80,5 @@ VF-001 is ready for owner acceptance; see its
 [acceptance record](docs/vf-001-acceptance.md). VF-002 adds agent configurations;
 VF-003 adds real browser voice sessions. Product scope and open decisions remain
 in [product](docs/product.md), [architecture](docs/architecture.md), and
-[decisions](docs/decisions.md). The GitHub remote is connected; hosted CI awaits the first push. Deployment is not connected.
+[decisions](docs/decisions.md). The GitHub remote is connected and VF-001 CI passed on the foundation branch. Deployment is not connected.
 Choose a license before a public release.

@@ -20,11 +20,11 @@ telephony, agent configuration, and integrations remain later tasks.
 
 | Criterion | Evidence | Status |
 | --- | --- | --- |
-| AC-1 documented clean start | Isolated Compose build/start, API readiness, browser sign-in, and restart passed. A literal clean Git checkout is unavailable before the initial commit. | Local behavior passed; clean checkout pending |
+| AC-1 documented clean start | Isolated Compose build/start, API readiness, browser sign-in, and restart passed locally and on a fresh GitHub Actions checkout. | Passed locally and in hosted CI; owner manual check pending |
 | AC-2 migration | PostgreSQL integration suite applied revision 0001 twice and preserved a sentinel row. Startup check observed 503 readiness and nonzero Alembic execution when the isolated DB was stopped. | Passed locally |
 | AC-3 unauthenticated protection | Integration suite returned 401 for missing, invalid, expired, and revoked sessions; Chromium direct navigation showed sign-in. | Passed locally |
 | AC-4 no default production password | The empty `.env.example` values caused Compose config to fail; the startup check found no usable account before explicit bootstrap; unit test verified hashing. | Passed locally |
-| AC-5 CI checks | Workflow runs locked setup, Python/web lint and types, unit/integration/browser tests, and isolated startup. Corresponding local checks passed. The GitHub remote is connected; hosted execution awaits the first push. | Local checks passed; hosted CI unexecuted |
+| AC-5 CI checks | Workflow ran locked setup, Python/web lint and types, unit/integration/browser tests, and isolated startup on GitHub. Run 35866580710 completed successfully at commit f4fa126. | Passed locally and in hosted CI |
 | AC-6 sign-in/out and replay | Chromium and API startup checks signed in, signed out, and rejected the old cookie. | Passed locally; owner manual check pending |
 | AC-7 roles | PostgreSQL integration tests verified admin/operator/viewer and direct forged role header behavior. | Passed locally |
 | AC-8 worker and persistence | Startup check read the explicit worker scaffold log and signed in after service restart without deleting the database volume. | Passed locally |
@@ -49,7 +49,7 @@ data. They are not part of the product repository.
 | `uv run --frozen --all-packages python scripts/check_startup.py` | Passed, exit 0; clean start, migration failure, auth, worker, restart |
 | `docker compose config --quiet` with synthetic filled values | Passed, exit 0 |
 | `docker compose config --quiet` with `.env.example` | Rejected missing password/URL as expected, exit 1 |
-| Hosted GitHub Actions | Unexecuted: awaiting the first push |
+| Hosted GitHub Actions | Run 35866580710 passed at f4fa126. Initial run 35864372359 failed at browser auth because an inherited `APP_ORIGIN` overrode the isolated Compose `.env`; fixed in f4fa126. |
 | Owner sign-in/sign-out acceptance | Sign-in confirmed by owner; sign-out pending |
 
 Earlier startup attempts failed on invalid synthetic email, piped interactive
@@ -88,5 +88,5 @@ VF-001; owner confirmation of the open architecture decision remains pending.
    Delete volumes only for a specifically disposable test installation.
 
 Code implementation: ready for owner acceptance. Human acceptance: pending.
-The GitHub-hosted CI and literal clean-checkout checks remain pending the first
-push. No API/provider keys are needed for VF-001.
+GitHub-hosted CI and fresh checkout checks passed. Owner sign-out and remaining
+manual acceptance checks are pending. No API/provider keys are needed for VF-001.
