@@ -1,8 +1,9 @@
 # Voice Fleet
 
 Self-hosted voice-agent platform for one organization per independent installation.
-VF-001 provides an API, sign-in dashboard, PostgreSQL schema, and an explicitly
-labeled voice-worker scaffold. Real voice sessions and telephony are later tasks.
+VF-001 provides the API, sign-in dashboard, and voice-worker scaffold. VF-002
+adds agent drafts, immutable published versions, environment bindings, and a
+minimal JSON editor. Real voice sessions and telephony are later tasks.
 
 ## Local start
 
@@ -77,8 +78,9 @@ a GitHub repository is connected. A local pass does not establish a hosted CI pa
 ## Project status
 
 VF-001 is ready for owner acceptance; see its
-[acceptance record](docs/vf-001-acceptance.md). VF-002 adds agent configurations;
-VF-003 adds real browser voice sessions. Product scope and open decisions remain
+[acceptance record](docs/vf-001-acceptance.md). VF-002 implementation is ready
+for manual acceptance; see [its record](docs/vf-002-acceptance.md). VF-003 adds
+real browser voice sessions. Product scope and open decisions remain
 in [product](docs/product.md), [architecture](docs/architecture.md), and
 [decisions](docs/decisions.md). The GitHub remote is connected and VF-001 CI passed on the foundation branch. Deployment is not connected.
 Choose a license before a public release.

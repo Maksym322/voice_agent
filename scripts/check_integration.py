@@ -1,7 +1,6 @@
 """Run PostgreSQL integration tests against an isolated Compose database."""
 
 import os
-import shutil
 import subprocess
 import sys
 
@@ -17,11 +16,8 @@ def main() -> int:
                 f"postgresql+psycopg://voice_fleet:{stack.password}"
                 f"@127.0.0.1:{stack.db_port}/voice_fleet_test"
             )
-            uv = shutil.which("uv.exe" if os.name == "nt" else "uv")
-            if not uv:
-                raise RuntimeError("uv is unavailable")
             result = subprocess.run(
-                [uv, "run", "--frozen", "--all-packages", "pytest", "tests/integration", "-q"],
+                [sys.executable, "-m", "pytest", "tests/integration", "-q"],
                 cwd=ROOT,
                 env=environment,
                 timeout=300,

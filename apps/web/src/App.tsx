@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { AgentEditor } from "./AgentEditor";
 
 type Identity = {
 	id: string;
@@ -95,6 +96,7 @@ export function App() {
 					<p className="subtle">
 						Voice sessions are not available in this foundation build.
 					</p>
+					<AgentEditor identity={identity} />
 					<button type="button" onClick={signOut}>
 						Sign out
 					</button>

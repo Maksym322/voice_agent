@@ -1,7 +1,8 @@
 # Backlog
 
 Status: VF-001 implementation and hosted CI passed; owner manual acceptance
-remains pending. Other application tasks have not started.
+remains pending. VF-002 implementation and local automated checks passed;
+owner manual acceptance remains pending. Other application tasks have not started.
 
 - VF-001: основа репозиторію та локальний запуск.
 - VF-002: конфігурації та версії агентів.
