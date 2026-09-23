@@ -1,0 +1,14 @@
+.git
+.venv
+node_modules
+artifacts
+.env
+.env.*
+!.env.example
+__pycache__
+.pytest_cache
+coverage
+dist
+recordings
+private-clients
+

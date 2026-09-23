@@ -1,0 +1,23 @@
+{
+  "name": "voice-fleet",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "lint": "biome check apps/web/src",
+    "typecheck": "tsc --noEmit -p apps/web/tsconfig.json",
+    "build": "npm run build -w @voice-fleet/web",
+    "test:e2e": "python scripts/e2e.py"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@playwright/test": "1.63.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.0"
+  }
+}

@@ -1,0 +1,12 @@
+[project]
+name = "voice-fleet-worker"
+version = "0.1.0"
+requires-python = ">=3.12,<3.15"
+dependencies = []
+
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voice_fleet_worker"]

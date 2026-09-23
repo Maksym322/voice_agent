@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_DB: voice_fleet
+      POSTGRES_USER: voice_fleet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voice_fleet -d voice_fleet"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    command: ["alembic", "upgrade", "head"]
+    environment: &api_env
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in .env}
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+      SESSION_LIFETIME_MINUTES: ${SESSION_LIFETIME_MINUTES:-480}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    command: ["uvicorn", "voice_fleet_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *api_env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    command: ["python", "-m", "voice_fleet_worker"]
+    environment: *api_env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db_data:
+
