@@ -102,6 +102,10 @@ run before live acceptance.
   inventory record.
 - The console exposes Deactivate, Retry cleanup, and Reactivate actions and
   displays the server route state. Session history remains tied to the number.
+- A retired number can be reactivated with an updated carrier label after
+  porting. The server validates the label, audits the old and new values, and
+  keeps the number ID and earlier call history intact. The carrier SIP CIDR
+  allowlist still comes from deployment configuration.
 - Synthetic test coverage includes active-call protection, failed cleanup,
   blocked dispatch, retry, reactivation, and distinct new session IDs. It
   still needs execution against a disposable PostgreSQL database. No real

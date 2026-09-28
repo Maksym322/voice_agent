@@ -152,7 +152,11 @@ reactivation.
 
 Admins can `POST /api/phone-numbers/{id}/reactivate` with the current revision
 after retirement. This provisions a new LiveKit trunk and dispatch rule for
-the same owned number and current carrier CIDR allowlist. It requires the
-selected agent to have an active binding. Both mutations require Origin, CSRF,
+the same owned number and current carrier CIDR allowlist. The request may also
+include a validated lowercase `provider` label when the number was ported to a
+different carrier; the old and new labels are recorded in the audit event.
+Update `INBOUND_SIP_ALLOWED_ADDRESSES` and restart the API before reactivation
+if the carrier's origination addresses changed. The selected agent must have an
+active binding. Both mutations require Origin, CSRF,
 admin role, and an optimistic revision. Route changes are blocked during
 deprovisioning. Neither operation configures the carrier or proves a real call.

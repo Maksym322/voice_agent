@@ -68,4 +68,7 @@ number only when it is actually owned and an active agent binding exists.
 allowlist in ignored `.env`; it is required to create an inbound LiveKit trunk.
 No default carrier or number is provisioned. `OUTBOUND_SIP_TRUNK_ID` and
 `OUTBOUND_TEST_DESTINATION` remain independent settings for the bounded manual
-outbound call. See `docs/sessions.md` for API and session direction contracts.
+outbound call. When an owned number is ported, deactivate its route, update
+`INBOUND_SIP_ALLOWED_ADDRESSES` for the new carrier, restart the API, and
+reactivate the same inventory row with the new carrier label. See
+`docs/sessions.md` for API and session direction contracts.

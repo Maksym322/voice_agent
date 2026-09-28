@@ -119,17 +119,32 @@ def test_inbound_number_route_and_distinct_session_ids(
         assert retired.status_code == 200
         assert retired.json()["status"] == "retired"
         assert attempts == 2
+        assert (
+            client.post(
+                f"/api/phone-numbers/{number['id']}/reactivate",
+                headers=headers(admin["csrf_token"]),
+                json={"expected_revision": retired.json()["revision"], "provider": "Bad Carrier"},
+            ).status_code
+            == 422
+        )
         reactivated = client.post(
             f"/api/phone-numbers/{number['id']}/reactivate",
             headers=headers(admin["csrf_token"]),
-            json={"expected_revision": retired.json()["revision"]},
+            json={
+                "expected_revision": retired.json()["revision"],
+                "provider": "synthetic_new_carrier",
+            },
         )
         assert reactivated.status_code == 200
         assert reactivated.json()["status"] == "active"
+        assert reactivated.json()["provider"] == "synthetic_new_carrier"
         third_id, _, _, _, _ = worker.create_inbound_session(
             UUID(number["id"]), f"vf-in-{number['id']}-third"
         )
         assert third_id not in (first_id, second_id)
+        with database() as db:
+            first = db.get(VoiceSession, first_id)
+            assert first is not None and first.phone_number_id == UUID(number["id"])
         operator = login(client, "number-operator@example.com")
         assert client.get("/api/phone-numbers").status_code == 403
         assert (

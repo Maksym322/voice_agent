@@ -852,6 +852,12 @@ class PhoneRouteRevision(BaseModel):
     expected_revision: int = Field(ge=1)
 
 
+class ReactivatePhoneNumber(PhoneRouteRevision):
+    provider: str | None = Field(
+        default=None, min_length=2, max_length=32, pattern=r"^[a-z0-9_-]+$"
+    )
+
+
 def require_admin(login: LoginSession) -> None:
     if login.user.role != "admin":
         raise HTTPException(403, "Admin role required")
@@ -1049,7 +1055,7 @@ def deactivate_phone_number(
 @app.post("/api/phone-numbers/{number_id}/reactivate")
 def reactivate_phone_number(
     number_id: UUID,
-    body: PhoneRouteRevision,
+    body: ReactivatePhoneNumber,
     db: Db,
     settings: Config,
     login: Annotated[LoginSession, Depends(require_csrf)],
@@ -1063,12 +1069,15 @@ def reactivate_phone_number(
     if number.status != "retired":
         raise HTTPException(409, "Deactivate the number before reactivating it")
     require_active_agent(db, number.route_agent_id, settings)
+    previous_provider = number.provider
     trunk_id: str | None = None
     rule_id: str | None = None
     try:
         trunk_id, rule_id = provision_inbound(settings, number.id, number.e164)
         number.sip_trunk_id = trunk_id
         number.dispatch_rule_id = rule_id
+        if body.provider is not None:
+            number.provider = body.provider
         number.status = "active"
         number.revision += 1
         number.updated_at = now_utc()
@@ -1077,7 +1086,12 @@ def reactivate_phone_number(
                 actor_id=login.user_id,
                 agent_id=number.route_agent_id,
                 action="phone_number_reactivated",
-                details={"number_id": str(number_id), "revision": number.revision},
+                details={
+                    "number_id": str(number_id),
+                    "revision": number.revision,
+                    "previous_provider": previous_provider,
+                    "provider": number.provider,
+                },
                 created_at=number.updated_at,
             )
         )

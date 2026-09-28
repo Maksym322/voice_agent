@@ -119,9 +119,13 @@ async function api<T>(
 	});
 	if (!response.ok) {
 		const data = (await response.json().catch(() => ({}))) as {
-			detail?: string;
+			detail?: unknown;
 		};
-		throw new Error(data.detail ?? `Request failed (${response.status})`);
+		throw new Error(
+			typeof data.detail === "string"
+				? data.detail
+				: `Request failed (${response.status})`,
+		);
 	}
 	return (await response.json()) as T;
 }
@@ -137,6 +141,10 @@ function duration(session: Session, now: number): string {
 
 function localTime(value: string): string {
 	return new Date(value).toLocaleString();
+}
+
+function validProviderLabel(value: string): boolean {
+	return /^[a-z0-9_-]{2,32}$/.test(value);
 }
 
 function usageRows(value: unknown): Record<string, unknown>[] {
@@ -196,6 +204,9 @@ export function Console({
 	const [callAgentId, setCallAgentId] = useState("");
 	const [callBusy, setCallBusy] = useState(false);
 	const [numbers, setNumbers] = useState<PhoneNumber[]>([]);
+	const [providerDrafts, setProviderDrafts] = useState<Record<string, string>>(
+		{},
+	);
 	const [newNumber, setNewNumber] = useState("");
 	const [newProvider, setNewProvider] = useState("");
 	const [newRoute, setNewRoute] = useState("");
@@ -409,11 +420,21 @@ export function Console({
 				`/api/phone-numbers/${number.id}/${action}`,
 				identity,
 				"POST",
-				{ expected_revision: number.revision },
+				action === "reactivate"
+					? {
+							expected_revision: number.revision,
+							provider: providerDrafts[number.id] ?? number.provider,
+						}
+					: { expected_revision: number.revision },
 			);
 			setNumbers((previous) =>
 				previous.map((item) => (item.id === number.id ? updated : item)),
 			);
+			setProviderDrafts((previous) => {
+				const next = { ...previous };
+				delete next[number.id];
+				return next;
+			});
 			setMessage(
 				action === "deactivate"
 					? "Inbound routing deactivated. Existing session history remains."
@@ -814,10 +835,36 @@ export function Console({
 											</option>
 										))}
 									</select>
+									{identity.role === "admin" && number.status === "retired" && (
+										<>
+											<input
+												aria-label={`Carrier label for ${number.e164_masked}`}
+												value={providerDrafts[number.id] ?? number.provider}
+												onChange={(event) =>
+													setProviderDrafts((previous) => ({
+														...previous,
+														[number.id]: event.target.value,
+													}))
+												}
+												disabled={numberBusy}
+											/>
+											<small className="subtle">
+												Use 2–32 lowercase letters, numbers, _ or -. Update
+												carrier SIP addresses in the server environment if it
+												changed.
+											</small>
+										</>
+									)}
 									{identity.role === "admin" && (
 										<button
 											type="button"
-											disabled={numberBusy}
+											disabled={
+												numberBusy ||
+												(number.status === "retired" &&
+													!validProviderLabel(
+														providerDrafts[number.id] ?? number.provider,
+													))
+											}
 											onClick={() => void changeNumberState(number)}
 										>
 											{number.status === "retired"
