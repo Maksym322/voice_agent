@@ -62,7 +62,9 @@ def client(database: sessionmaker[Session]) -> Iterator[TestClient]:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE audit_events, deployment_bindings, agent_versions, agents, "
+                "TRUNCATE operator_views, session_diagnostics, session_events, "
+                "voice_sessions, phone_numbers, audit_events, "
+                "deployment_bindings, agent_versions, agents, "
                 "login_sessions, users"
             )
         )

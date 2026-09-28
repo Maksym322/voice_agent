@@ -2,7 +2,10 @@
 name = "voice-fleet-worker"
 version = "0.1.0"
 requires-python = ">=3.12,<3.15"
-dependencies = []
+dependencies = [
+    "livekit-agents[cartesia,deepgram,google,openai]==1.8.3",
+    "voice-fleet-api==0.1.0",
+]
 
 [build-system]
 requires = ["hatchling==1.28.0"]

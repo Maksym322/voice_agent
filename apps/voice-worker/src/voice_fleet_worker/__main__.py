@@ -1,16 +1,14 @@
-"""Explicitly labeled voice worker scaffold."""
+"""Command-line entrypoint for the importable LiveKit worker."""
 
-import signal
-import threading
+import os
 
+from livekit.agents import cli
 
-def main() -> None:
-    stop = threading.Event()
-    signal.signal(signal.SIGTERM, lambda _signum, _frame: stop.set())
-    signal.signal(signal.SIGINT, lambda _signum, _frame: stop.set())
-    print("Voice Fleet worker scaffold: voice processing is not implemented.", flush=True)
-    stop.wait()
-
+from voice_fleet_worker.worker import server
 
 if __name__ == "__main__":
-    main()
+    if not all(
+        os.environ.get(name) for name in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET")
+    ):
+        raise SystemExit("Voice Fleet worker unavailable: LiveKit is not configured.")
+    cli.run_app(server)

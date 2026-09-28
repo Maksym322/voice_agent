@@ -1,9 +1,13 @@
 # Voice Fleet
 
 Self-hosted voice-agent platform for one organization per independent installation.
-VF-001 provides the API, sign-in dashboard, and voice-worker scaffold. VF-002
-adds agent drafts, immutable published versions, environment bindings, and a
-minimal JSON editor. Real voice sessions and telephony are later tasks.
+VF-001 provides the API and sign-in dashboard. VF-002 adds agent drafts,
+immutable published versions, and environment bindings. VF-003 adds browser
+voice sessions and a registered worker. VF-009 adds the operator console for
+real sessions, history, diagnostics, and saved views. Live audio acceptance
+requires a configured LiveKit server and provider credentials. VF-005 has a
+bounded outbound phone-test slice and number-scoped inbound routing code.
+Carrier delivery and real phone acceptance remain pending.
 
 ## Local start
 
@@ -25,7 +29,9 @@ to run the Compose application.
    ```
 
    Compose starts PostgreSQL, applies the versioned migration, then starts the
-   API, dashboard, and worker scaffold. A failed migration prevents API startup.
+   API and dashboard. The worker registers only when LiveKit is configured; it
+   exits with a clear unavailable message otherwise. A failed migration
+   prevents API startup.
    Open http://localhost:8080 and check http://localhost:8080/health/ready.
 3. Create the first administrator interactively. There is no default account:
 
@@ -42,7 +48,10 @@ to run the Compose application.
 On Linux/macOS, use `docker` in place of `docker.exe`. The default ports are
 8080 for the dashboard/API and 5433 for PostgreSQL, both bound to localhost.
 Change `WEB_PORT` and `APP_ORIGIN` together. See [authentication](docs/authentication.md),
-[migrations](docs/migrations.md), and [testing](docs/testing.md).
+[migrations](docs/migrations.md), [testing](docs/testing.md), and the
+[operator console contract](docs/operator-console.md). The Numbers page stays
+empty until an admin configures a real owned number and LiveKit inbound route.
+For a paid voice smoke test, see the [live setup and cost guide](docs/live-setup-and-cost.md).
 
 ## Development checks
 
@@ -79,8 +88,15 @@ a GitHub repository is connected. A local pass does not establish a hosted CI pa
 
 VF-001 is ready for owner acceptance; see its
 [acceptance record](docs/vf-001-acceptance.md). VF-002 implementation is ready
-for manual acceptance; see [its record](docs/vf-002-acceptance.md). VF-003 adds
-real browser voice sessions. Product scope and open decisions remain
+for manual acceptance; see [its record](docs/vf-002-acceptance.md). VF-003 code
+and VF-009 console code passed local automated checks in this isolated branch;
+see their [acceptance records](docs/vf-003-acceptance.md) and
+[console record](docs/vf-009-acceptance.md). The worker uses a provisional
+direct-provider pipeline. The owner confirmed an audible response and both
+transcripts. Interruption, network loss, and two-installation branding still
+require manual checks and the provider,
+language, budget, and LiveKit hosting decisions. See the
+[session contract](docs/sessions.md). Product scope and open decisions remain
 in [product](docs/product.md), [architecture](docs/architecture.md), and
 [decisions](docs/decisions.md). The GitHub remote is connected and VF-001 CI passed on the foundation branch. Deployment is not connected.
 Choose a license before a public release.

@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { AgentEditor } from "./AgentEditor";
+import { Console } from "./Console";
 
 type Identity = {
 	id: string;
@@ -77,30 +78,30 @@ export function App() {
 	}
 
 	return (
-		<main className="shell">
-			<header>
-				<p className="eyebrow">Voice Fleet</p>
-				<h1>Operator dashboard</h1>
-				<p className="subtle">
-					Foundation access for one independent installation.
-				</p>
-			</header>
+		<main className={identity ? "app-root" : "shell"}>
+			{!identity && (
+				<header>
+					<p className="eyebrow">Voice Fleet</p>
+					<h1>Operator dashboard</h1>
+					<p className="subtle">
+						Foundation access for one independent installation.
+					</p>
+				</header>
+			)}
 			{loading ? (
 				<p role="status">Checking your session…</p>
-			) : identity ? (
-				<section aria-label="Dashboard">
-					<p>
-						Signed in as <strong>{identity.email}</strong>
-					</p>
-					<p>Role: {identity.role}</p>
-					<p className="subtle">
-						Voice sessions are not available in this foundation build.
-					</p>
+			) : identity?.role === "viewer" ? (
+				<section aria-label="Dashboard" className="viewer-dashboard">
+					<h1>Voice Fleet</h1>
+					<p>Signed in as {identity.email} · viewer</p>
+					<p>Session history and diagnostics require an operator role.</p>
 					<AgentEditor identity={identity} />
 					<button type="button" onClick={signOut}>
 						Sign out
 					</button>
 				</section>
+			) : identity ? (
+				<Console identity={identity} onSignOut={signOut} />
 			) : (
 				<section aria-label="Sign in">
 					<h2>Sign in</h2>

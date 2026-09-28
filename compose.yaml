@@ -26,6 +26,15 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
       SESSION_LIFETIME_MINUTES: ${SESSION_LIFETIME_MINUTES:-480}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_BROWSER_URL: ${LIVEKIT_BROWSER_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      PLAYGROUND_MAX_SECONDS: ${PLAYGROUND_MAX_SECONDS:-600}
+      CONSOLE_BRAND_NAME: ${CONSOLE_BRAND_NAME:-Voice Fleet}
+      CONSOLE_ACCENT_COLOR: "${CONSOLE_ACCENT_COLOR:-#0b5960}"
+      CONSOLE_DEFAULT_GROUPS: ${CONSOLE_DEFAULT_GROUPS:-pending,active,error,ended}
+      CONSOLE_VISIBLE_MODULES: ${CONSOLE_VISIBLE_MODULES:-overview,board,history,agents,numbers,logs,settings}
     depends_on:
       db:
         condition: service_healthy
@@ -36,7 +45,12 @@ services:
       context: .
       dockerfile: Dockerfile.python
     command: ["uvicorn", "voice_fleet_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    environment: *api_env
+    environment:
+      <<: *api_env
+      OUTBOUND_SIP_TRUNK_ID: ${OUTBOUND_SIP_TRUNK_ID:-}
+      OUTBOUND_TEST_DESTINATION: ${OUTBOUND_TEST_DESTINATION:-}
+      OUTBOUND_TEST_MAX_SECONDS: ${OUTBOUND_TEST_MAX_SECONDS:-180}
+      INBOUND_SIP_ALLOWED_ADDRESSES: ${INBOUND_SIP_ALLOWED_ADDRESSES:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -50,8 +64,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.python
-    command: ["python", "-m", "voice_fleet_worker"]
-    environment: *api_env
+    command: ["python", "-m", "voice_fleet_worker", "start"]
+    environment:
+      <<: *api_env
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      CARTESIA_API_KEY: ${CARTESIA_API_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -69,4 +88,3 @@ services:
 
 volumes:
   db_data:
-

@@ -5,6 +5,7 @@ test("create, publish, activate, and roll back an agent", async ({ page }) => {
 	await page.getByLabel("Email").fill(process.env.VF_E2E_EMAIL ?? "");
 	await page.getByLabel("Password").fill(process.env.VF_E2E_PASSWORD ?? "");
 	await page.getByRole("button", { name: "Sign in" }).click();
+	await page.getByRole("button", { name: "Agents", exact: true }).click();
 	const editor = page.getByRole("region", { name: "Agent configurations" });
 	await expect(editor).toBeVisible();
 	await editor.getByLabel("Name").fill("E2E receptionist");

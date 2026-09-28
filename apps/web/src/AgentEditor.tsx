@@ -5,6 +5,7 @@ type Agent = {
 	id: string;
 	name: string;
 	revision: number;
+	current_sessions: number;
 	config: Record<string, unknown>;
 };
 type Version = { id: string; number: number };
@@ -162,6 +163,7 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 			{selected && (
 				<>
 					<p>Draft revision {selected.revision}</p>
+					<p>Current sessions: {selected.current_sessions}</p>
 					{canEdit ? (
 						<form onSubmit={save}>
 							<label htmlFor="agent-name">Name</label>

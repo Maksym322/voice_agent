@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "livekit-client": "2.22.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   }

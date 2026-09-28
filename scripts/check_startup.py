@@ -29,7 +29,9 @@ def main() -> int:
                 == 204
             )
             assert stack.request("/api/auth/me", cookie=cookie)[0] == 401
-            assert "voice processing is not implemented" in stack.compose("logs", "worker")
+            assert "worker unavailable: LiveKit is not configured" in stack.compose(
+                "logs", "worker"
+            )
             stack.compose("stop", "api", "web", "worker")
             stack.compose("up", "-d", "api", "web", "worker")
             stack.wait_ready()
@@ -51,7 +53,9 @@ def main() -> int:
                 raise RuntimeError("Migration unexpectedly succeeded without PostgreSQL")
             stack.compose("start", "db")
             stack.wait_ready()
-            print("Clean startup, auth, worker scaffold, and restart persistence passed.")
+            print(
+                "Clean startup, auth, explicit unconfigured worker, and restart persistence passed."
+            )
             return 0
     except Exception as exc:
         print(f"Startup check failed: {exc}", file=sys.stderr)

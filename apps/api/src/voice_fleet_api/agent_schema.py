@@ -1,7 +1,7 @@
 """Versioned, secret-free agent configuration contract."""
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -13,12 +13,42 @@ SENSITIVE_VALUE = re.compile(
 )
 
 
+class VoiceConfig(BaseModel):
+    """Supported direct-provider preset, pinned in each published snapshot."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stt_provider: str = Field(default="deepgram", pattern="^deepgram$")
+    stt_model: str = Field(default="nova-3", pattern="^nova-3$")
+    llm_provider: Literal["openai", "google"] = "openai"
+    llm_model: str = "gpt-4o-mini"
+    tts_provider: str = Field(default="cartesia", pattern="^cartesia$")
+    tts_model: str = Field(default="sonic-3", pattern="^sonic-3$")
+    tts_voice: str = Field(
+        default="f786b574-daa5-4673-aa0c-cbe3e8534c02", pattern=r"^[0-9a-f-]{36}$"
+    )
+
+    @model_validator(mode="after")
+    def validate_llm_pair(self) -> "VoiceConfig":
+        supported = {
+            "openai": ("gpt-4o-mini",),
+            "google": ("gemini-2.5-flash-lite", "gemini-3.5-flash-lite"),
+        }
+        if self.llm_model not in supported[self.llm_provider]:
+            raise ValueError(
+                f"voice.llm_model must be one of {', '.join(supported[self.llm_provider])} "
+                f"for {self.llm_provider}"
+            )
+        return self
+
+
 class AgentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schema_version: int = Field(default=1, ge=1, le=1)
     instructions: str = Field(min_length=1, max_length=20000)
     locale: str = Field(default="en-US", pattern=r"^[a-z]{2,3}-[A-Z]{2}$")
+    voice: VoiceConfig = Field(default_factory=VoiceConfig)
     timezone: str = Field(default="UTC", min_length=1, max_length=64)
     provider_references: dict[str, str] = Field(default_factory=dict)
     tool_allowlist: list[str] = Field(default_factory=list, max_length=100)
