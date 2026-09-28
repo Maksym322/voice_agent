@@ -6,11 +6,13 @@ The README lists the exact local commands. CI runs Python Ruff lint/format,
 Mypy types, unit and PostgreSQL integration tests; web Biome lint, TypeScript
 types and Vite build; real Chromium authentication flow; and isolated Compose
 startup/restart. The database suite requires `TEST_DATABASE_URL` naming a
-`voice_fleet_test*` database and uses synthetic accounts. The browser and
+`voice_fleet_test*` database and uses synthetic accounts. CI also sets
+`DATABASE_URL` to that same disposable database so API/worker imports during
+unit-test collection can validate settings. The browser and
 startup commands create unique Compose projects and remove only their own
 volumes. They require Docker Engine; browser tests require Playwright Chromium.
 No provider keys or paid API calls are part of regular checks. A hosted CI run
-remains pending until GitHub is connected.
+must pass for each pushed commit; local passes do not establish that result.
 
 The implementation follows the current [FastAPI](https://fastapi.tiangolo.com/),
 [SQLAlchemy 2](https://docs.sqlalchemy.org/en/20/orm/session.html),

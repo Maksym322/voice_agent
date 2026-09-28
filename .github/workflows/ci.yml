@@ -49,6 +49,8 @@ jobs:
           npm run typecheck
           npm run build
       - name: Unit and database integration tests
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
         run: |
           uv run --frozen --all-packages pytest tests/unit
           uv run --frozen --all-packages pytest tests/integration
@@ -56,4 +58,3 @@ jobs:
         run: npm run test:e2e
       - name: Clean Compose startup
         run: uv run --frozen --all-packages python scripts/check_startup.py
-
