@@ -155,8 +155,8 @@ TLS and suitable network ports; VM/bandwidth pricing depends on the host.
 
 ## VF-005 outbound phone test (not yet live-accepted)
 
-The owner chose a paid Twilio test with a foreign voice-capable Caller ID
-number on 2026-09-28, relaxing the earlier $5 initial funding cap. Their
+The owner considered a paid Twilio test with a foreign voice-capable Caller ID
+number on 2026-09-28, then postponed the carrier decision. Their
 account asks for a $20 upgrade and blocks trial SIP trunk creation. This $20
 is initial account funding, not the price of one call. The code accepts any
 LiveKit stored outbound SIP trunk ID, but no provider has completed a real
@@ -206,20 +206,21 @@ phone number in chat.
    `.env` as `OUTBOUND_SIP_TRUNK_ID`. See the [LiveKit outbound trunk
    guide](https://docs.livekit.io/telephony/making-calls/outbound-trunk/).
 3. Incoming +380 calls need a separate LiveKit **inbound** trunk, a per-call
-   dispatch rule, and Voice Fleet number routing. Only after these are
-   implemented, point the Zadarma number's external SIP URI at the LiveKit SIP
-   endpoint. This is not wired in the application yet. See the
+   dispatch rule, and Voice Fleet number routing. The application can create
+   those resources for an owned number after the carrier's documented SIP
+   origination CIDRs are configured. Only then point the number's external SIP
+   URI at the LiveKit SIP endpoint. Carrier delivery remains unverified. See the
    [LiveKit inbound guide](https://docs.livekit.io/telephony/accepting-calls/inbound-trunk/)
    and [Zadarma external SIP routing](https://zadarma.com/en/support/faq/virtual-numbers/connect-number-to-server/).
 
-### Current Twilio outbound test setup
+### Optional Twilio outbound test setup (deferred)
 
 The original setup plan used Twilio for a first **outbound** AI call to the
-owner's own +380 phone. This does not supply a +380 number for inbound calls. Twilio currently
-[does not offer voice-enabled Ukrainian numbers](https://www.twilio.com/en-us/sip-trunking/pricing/ua).
-Its published Elastic SIP rate for Ukraine starts at $0.3101/min and some
-mobile routes are higher; review the actual route and account balance before
-calling. Twilio, LiveKit telephony, STT, LLM, and TTS may each charge separately.
+owner's own +380 phone. This does not supply a +380 number for inbound calls.
+Confirm current number availability and Ukraine termination rates on the
+[Twilio pricing page](https://www.twilio.com/en-us/sip-trunking/pricing/ua)
+before funding the test. Twilio, LiveKit telephony, STT, LLM, and TTS may each
+charge separately.
 
 1. In Twilio, enable [Voice geographic permission for
    Ukraine](https://help.twilio.com/articles/223179948-Does-Twilio-Support-Dialing-International-Phone-Numbers-)
@@ -242,8 +243,8 @@ calling. Twilio, LiveKit telephony, STT, LLM, and TTS may each charge separately
    ```
 
    Run `docker.exe compose build` then `docker.exe compose up -d` in the
-   isolated working copy so revision `0006_phone_numbers` is applied. This destination
-   is the **only** number the test endpoint can dial. The full number is not
+   isolated working copy so revision `0007_phone_route_lifecycle` is applied.
+   This destination is the **only** number the test endpoint can dial. The full number is not
    stored in session rows; the UI shows only its last four digits.
 4. Sign in as admin, publish and activate a voice agent, go to **Agents**, choose
    it, and click **Call test phone**. This click can start a billed call. Answer
@@ -254,6 +255,7 @@ calling. Twilio, LiveKit telephony, STT, LLM, and TTS may each charge separately
 Do not put the destination number or any Twilio credential in chat. The code
 path is not evidence of a connected telephone call; the first live call and a
 declined-call failure check remain manual acceptance steps.
+
 # Deferred inbound setup
 
 You can leave inbound telephony unconfigured while using the browser voice

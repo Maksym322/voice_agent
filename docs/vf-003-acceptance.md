@@ -87,7 +87,7 @@ and Compose checks are in the parent `voice-fleet-dev/artifacts/vf009-*.json`.
 | Disposable Compose startup/restart | Exit 0 after Gemini dependency update; migration, auth, explicit unconfigured worker, persistence passed; API recreation returned HTTP 200 through the repaired proxy |
 | Credentialed worker registration | Isolated Compose worker registered with LiveKit Cloud after the importable callback fix |
 | Live audible/provider/network/latency check | Synthetic microphone, both transcripts, remote audio signal, usage, latency, normal end and provider-error cleanup passed; owner confirmed audible response; live interruption record/UI passed; network loss and perceived interruption response untested |
-| Hosted CI | Unexecuted on this uncommitted branch |
+| Hosted CI | Unverified in this acceptance record; the branch was pushed later |
 
 The initial sandboxed integration run could not create its temporary Compose
 environment; the authorized rerun passed. A sandboxed Vite build hit Windows

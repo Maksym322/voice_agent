@@ -11,7 +11,8 @@ settings, while personal board views are stored per user. Product events,
 sanitized diagnostics, and agent-change audit records remain separate. See
 `docs/operator-console.md`.
 VF-005's first slice adds an admin-triggered call from API through a stored
-LiveKit outbound SIP trunk and Twilio to one configured +380 destination.
+LiveKit outbound SIP trunk to one configured +380 destination. The carrier is
+selected in the LiveKit trunk; no carrier interoperability has been accepted.
 The phone participant joins the same pinned worker/session model as the
 browser. VF-005 also prepares a number-scoped inbound trunk and dispatch route,
 with one pinned session per call. Carrier delivery has not been verified.

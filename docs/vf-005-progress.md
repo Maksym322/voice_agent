@@ -1,9 +1,10 @@
 # VF-005 progress — 2026-09-27
 
-Working copy: `artifacts/vf003-work` on `vf-003-voice-playground`. All earlier
-VF-003 and VF-009 edits remain uncommitted and preserved. The original `voice`
-checkout was not changed. This record covers only the bounded outbound test
-slice of VF-005; it is not full telephony acceptance.
+Working copy: `artifacts/vf003-work` on `vf-003-voice-playground`. At the
+original 2026-09-27 checkpoint, earlier VF-003 and VF-009 edits were
+uncommitted; they have since been preserved, committed, and pushed. The
+original `voice` checkout was not changed. This record covers the bounded
+outbound test and later inbound preparation, not full telephony acceptance.
 
 ## Implemented
 
@@ -48,16 +49,15 @@ edit. No billed Twilio or LiveKit SIP call was made.
 
 ## Acceptance still required
 
-- The owner chose a paid Twilio test with a foreign voice number on 2026-09-28,
-  relaxing the earlier $5 cap. They need to complete their account upgrade,
-  configure Twilio termination credentials, permitted Caller ID and Ukraine
-  dialing, then create the matching LiveKit stored outbound trunk. The owner's
-  own +380 destination and LiveKit trunk ID belong in ignored `.env`.
+- The owner considered a paid Twilio test with a foreign voice number on
+  2026-09-28, then postponed the carrier decision. The selected carrier must
+  permit the intended Caller ID and Ukraine dialing. Its stored LiveKit trunk
+  ID and the owner's own +380 destination belong in ignored `.env`.
 - Make one bounded real call to the owner's phone. Confirm audible greeting,
   two-sided transcript, interruption, hangup, metrics, masked destination, SIP
   call ID, and clean room termination. Decline a second call and verify the
-  error path. These are untested against Twilio and cannot be accepted from
-  synthetic checks alone.
+  error path. Carrier interoperability cannot be accepted from synthetic
+  checks alone.
 - Select a +380 inbound carrier and verify actual SIP delivery, concurrent-call
   capacity, and a live inbound call before VF-005 can be marked complete.
   Provider choice is deferred by the owner; no number has been bought or
