@@ -8,6 +8,12 @@ include current sessions and sessions ended in the last five minutes; older
 terminal sessions are in History. API dates are UTC and displayed in the
 browser's local timezone.
 
+The board uses fixed-width, horizontally scrollable status columns and compact
+session cards. Each card shows the full session ID and the optional fields
+selected in the saved view. The browser call controls are in a collapsible panel above
+the board; collapsing it does not end an active call. The visual grouping does
+not introduce drag-to-change-state behavior or a new status contract.
+
 ## Access and queries
 
 Existing roles continue: admins read all sessions, operators read only their
@@ -63,8 +69,9 @@ Apply Alembic revision `0004_operator_console` through the normal migration
 service before starting the API. It adds `channel=browser` to existing session
 rows, an event `source`, sort indexes, `session_diagnostics`, and
 `operator_views`. Downgrade removes diagnostics and saved views. The worker and
-API now expect the later `0006_phone_numbers` head, which adds phone direction
-and number routing after the bounded outbound metadata. Back up a real database before schema changes.
+API now expect the later `0007_phone_route_lifecycle` head, which adds phone
+direction, number routing, and route lifecycle after the bounded outbound
+metadata. Back up a real database before schema changes.
 No migration duplicates transcript text into diagnostics.
 
 Live acceptance still requires actual LiveKit hosting, provider credentials,

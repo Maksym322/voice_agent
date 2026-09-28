@@ -513,7 +513,16 @@ export function Console({
 				)}
 				{page === "board" && (
 					<>
-						<VoicePlayground identity={identity} />
+						<div className="board-toolbar">
+							<div>
+								<strong>Conversations</strong>
+								<span>{board.length} visible · Refreshes every 2 seconds</span>
+							</div>
+						</div>
+						<details className="call-launcher">
+							<summary>Start a browser conversation</summary>
+							<VoicePlayground identity={identity} />
+						</details>
 						<div className="board">
 							{(
 								view?.group_order ?? ["pending", "active", "error", "ended"]
@@ -521,11 +530,12 @@ export function Console({
 								<section
 									className="board-group"
 									key={status}
+									data-status={status}
 									aria-label={`${status} sessions`}
 								>
 									<h2>
-										{status}{" "}
-										<span>
+										<span className="board-status">{status}</span>
+										<span className="board-count">
 											{board.filter((item) => item.status === status).length}
 										</span>
 									</h2>
@@ -538,36 +548,44 @@ export function Console({
 												key={item.id}
 												onClick={() => openSession(item)}
 											>
-												<strong>
-													{(view?.fields ?? []).includes("agent")
-														? item.agent_name
-														: "Session"}
-												</strong>
-												<small>{item.id}</small>
+												<span className="card-heading">
+													<strong>
+														{(view?.fields ?? []).includes("agent")
+															? item.agent_name
+															: "Session"}
+													</strong>
+													{(view?.fields ?? []).includes("channel") && (
+														<span className="card-channel">{item.channel}</span>
+													)}
+												</span>
+												<small className="card-id">{item.id}</small>
 												{item.destination_masked && (
-													<small>
+													<small className="card-destination">
 														{item.direction === "inbound" ? "From" : "To"}{" "}
 														{item.destination_masked}
 													</small>
 												)}
-												<span>
-													{(view?.fields ?? []).includes("channel") &&
-														`${item.channel} · `}
-													{(view?.fields ?? []).includes("version") &&
-														`v${item.version_number} · `}
-													{(view?.fields ?? []).includes("duration") &&
-														duration(item, now)}
-												</span>
+												{((view?.fields ?? []).includes("duration") ||
+													(view?.fields ?? []).includes("version")) && (
+													<span className="card-facts">
+														{(view?.fields ?? []).includes("duration") && (
+															<span>{duration(item, now)}</span>
+														)}
+														{(view?.fields ?? []).includes("version") && (
+															<span>Version {item.version_number}</span>
+														)}
+													</span>
+												)}
 												{(view?.fields ?? []).includes("last_activity") && (
-													<small>
-														Last activity {localTime(item.last_activity_at)}
+													<small className="card-activity">
+														Updated {localTime(item.last_activity_at)}
 													</small>
 												)}
 												{item.error_code && <em>{item.error_code}</em>}
 											</button>
 										))}
 									{!board.some((item) => item.status === status) && (
-										<p className="subtle">No sessions</p>
+										<p className="board-empty">No sessions</p>
 									)}
 								</section>
 							))}

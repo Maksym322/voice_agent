@@ -82,3 +82,14 @@ and confirmed that its delivered agent turn was labeled
 
 API, authorization, retention, saved-view, and migration contracts:
 `docs/operator-console.md` and `docs/migrations.md`. Human acceptance: pending.
+
+## Board layout update, 2026-09-28
+
+The live board now uses compact, horizontally scrollable columns with a clear
+status count, full session IDs, optional saved-view fields, and an expandable
+browser-call panel. It uses the existing API responses and saved-view contract;
+no migration or status mutation was added. Manual visual acceptance remains:
+open the board on desktop and a narrow screen, create two real sessions for
+one agent, confirm cards remain distinct and readable, and verify a collapsed
+call panel does not disconnect an active session. Empty columns must show an
+empty state rather than synthetic cards.
