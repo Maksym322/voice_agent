@@ -76,9 +76,9 @@ and confirmed that its delivered agent turn was labeled
    server status did not change.
 5. Start a second *independent disposable* installation with a different
    `CONSOLE_BRAND_NAME`, `CONSOLE_ACCENT_COLOR`, and group order. Compare the
-   UI and verify the databases and secrets are separate. No number inventory
-   or routing should appear. Stop both stacks without deleting non-disposable
-   data.
+   UI and verify the databases and secrets are separate. The admin Numbers
+   inventory should be empty until a real VF-005 route is provisioned. Stop
+   both stacks without deleting non-disposable data.
 
 API, authorization, retention, saved-view, and migration contracts:
 `docs/operator-console.md` and `docs/migrations.md`. Human acceptance: pending.
