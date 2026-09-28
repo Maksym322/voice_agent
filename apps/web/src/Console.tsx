@@ -421,7 +421,9 @@ export function Console({
 			);
 		} catch (reason) {
 			setError(String(reason));
-			void api<PhoneNumber[]>("/api/phone-numbers", identity).then(setNumbers);
+			void api<PhoneNumber[]>("/api/phone-numbers", identity)
+				.then(setNumbers)
+				.catch(() => undefined);
 		} finally {
 			setNumberBusy(false);
 		}

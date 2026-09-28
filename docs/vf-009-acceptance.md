@@ -93,3 +93,6 @@ open the board on desktop and a narrow screen, create two real sessions for
 one agent, confirm cards remain distinct and readable, and verify a collapsed
 call panel does not disconnect an active session. Empty columns must show an
 empty state rather than synthetic cards.
+Web lint, TypeScript typecheck, and the production build passed after the
+layout change; a live browser visual review was not run while Docker Desktop
+was stopped.

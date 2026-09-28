@@ -107,6 +107,12 @@ run before live acceptance.
   still needs execution against a disposable PostgreSQL database. No real
   carrier call has been made.
 
+After this update, 28 unit tests and 3 database-free integration checks passed;
+17 database integration checks skipped because `TEST_DATABASE_URL` was not set
+and Docker Desktop was stopped. Ruff, format, Mypy, web lint/typecheck, and a
+production web build passed. Alembic reports 0007 as the single head. These
+checks do not establish PostgreSQL migration or real SIP behavior.
+
 Manual acceptance after a carrier and owned number are available: create the
 route with verified carrier CIDRs; receive a call and confirm audio/transcripts;
 finish the call; deactivate the route and confirm the LiveKit resources are
