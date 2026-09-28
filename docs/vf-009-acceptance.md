@@ -96,3 +96,12 @@ empty state rather than synthetic cards.
 Web lint, TypeScript typecheck, and the production build passed after the
 layout change; a live browser visual review was not run while Docker Desktop
 was stopped.
+
+A separate synthetic visual smoke check rendered the built console in headless
+Chromium at 1440 px and 390 px. The first narrow-screen render exposed page
+overflow; the responsive grid fix keeps the document at 390 px while the board
+scrolls inside its own 358 px viewport. Four synthetic session cards appeared
+in four columns at both sizes. This verifies layout only: the HTTP responses
+were test fixtures, and no API, database, worker, or real call was involved.
+The synthetic screenshots are `artifacts/board-desktop-synthetic.png` and
+`artifacts/board-mobile-synthetic.png` in the parent development workspace.
