@@ -143,10 +143,18 @@ def provision_inbound(settings: Settings, number_id: UUID, e164: str) -> tuple[s
 async def _remove_inbound(settings: Settings, trunk_id: str, rule_id: str) -> None:
     url, _, key, secret = require_livekit(settings)
     async with api.LiveKitAPI(url=url, api_key=key, api_secret=secret) as client:
-        await client.sip.delete_sip_dispatch_rule(
-            api.DeleteSIPDispatchRuleRequest(sip_dispatch_rule_id=rule_id)
-        )
-        await client.sip.delete_sip_trunk(api.DeleteSIPTrunkRequest(sip_trunk_id=trunk_id))
+        try:
+            await client.sip.delete_sip_dispatch_rule(
+                api.DeleteSIPDispatchRuleRequest(sip_dispatch_rule_id=rule_id)
+            )
+        except api.TwirpError as exc:
+            if exc.status != 404:
+                raise
+        try:
+            await client.sip.delete_sip_trunk(api.DeleteSIPTrunkRequest(sip_trunk_id=trunk_id))
+        except api.TwirpError as exc:
+            if exc.status != 404:
+                raise
 
 
 def remove_inbound(settings: Settings, trunk_id: str, rule_id: str) -> None:

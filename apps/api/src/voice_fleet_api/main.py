@@ -233,7 +233,7 @@ def readiness(db: Db) -> dict[str, str]:
         db.execute(text("SELECT 1"))
     except Exception as exc:
         raise HTTPException(503, "Database or migrations unavailable") from exc
-    if revision != "0006_phone_numbers":
+    if revision != "0007_phone_route_lifecycle":
         raise HTTPException(503, "Database migration required")
     return {"status": "ready"}
 
@@ -848,6 +848,10 @@ class ChangePhoneRoute(BaseModel):
     expected_revision: int = Field(ge=1)
 
 
+class PhoneRouteRevision(BaseModel):
+    expected_revision: int = Field(ge=1)
+
+
 def require_admin(login: LoginSession) -> None:
     if login.user.role != "admin":
         raise HTTPException(403, "Admin role required")
@@ -870,8 +874,9 @@ def phone_number_view(number: PhoneNumber) -> dict[str, object]:
         "e164_masked": f"••••{number.e164[-4:]}",
         "provider": number.provider,
         "route_agent_id": str(number.route_agent_id),
+        "status": number.status,
         "revision": number.revision,
-        "livekit_configured": True,
+        "livekit_configured": number.status == "active",
         "carrier_verified": False,
         "created_at": number.created_at.isoformat(),
     }
@@ -956,6 +961,8 @@ def change_phone_route(
         raise HTTPException(404, "Number not found")
     if number.revision != body.expected_revision:
         raise HTTPException(409, "Number route was changed; reload and try again")
+    if number.status == "deprovisioning":
+        raise HTTPException(409, "Number route is being deprovisioned")
     require_active_agent(db, body.route_agent_id, settings)
     number.route_agent_id = body.route_agent_id
     number.revision += 1
@@ -970,6 +977,119 @@ def change_phone_route(
         )
     )
     db.commit()
+    return phone_number_view(number)
+
+
+@app.post("/api/phone-numbers/{number_id}/deactivate")
+def deactivate_phone_number(
+    number_id: UUID,
+    body: PhoneRouteRevision,
+    db: Db,
+    settings: Config,
+    login: Annotated[LoginSession, Depends(require_csrf)],
+) -> dict[str, object]:
+    require_admin(login)
+    number = db.scalar(select(PhoneNumber).where(PhoneNumber.id == number_id).with_for_update())
+    if number is None:
+        raise HTTPException(404, "Number not found")
+    if number.revision != body.expected_revision:
+        raise HTTPException(409, "Number route was changed; reload and try again")
+    if number.status == "retired":
+        raise HTTPException(409, "Number route is already inactive")
+    if number.status == "active":
+        in_call = db.scalar(
+            select(VoiceSession.id)
+            .where(
+                VoiceSession.phone_number_id == number_id,
+                VoiceSession.status.in_(("pending", "active")),
+            )
+            .limit(1)
+        )
+        if in_call is not None:
+            raise HTTPException(409, "Wait for active calls on this number to end")
+        number.status = "deprovisioning"
+        number.revision += 1
+        number.updated_at = now_utc()
+        db.add(
+            AuditEvent(
+                actor_id=login.user_id,
+                agent_id=number.route_agent_id,
+                action="phone_number_deprovision_started",
+                details={"number_id": str(number_id), "revision": number.revision},
+                created_at=number.updated_at,
+            )
+        )
+        db.commit()
+    try:
+        remove_inbound(settings, number.sip_trunk_id, number.dispatch_rule_id)
+    except Exception as exc:
+        logger.exception("Could not deprovision inbound number %s", number_id)
+        raise HTTPException(503, "LiveKit cleanup failed; retry deactivation") from exc
+    db.refresh(number, with_for_update=True)
+    if number.status == "retired":
+        return phone_number_view(number)
+    if number.status != "deprovisioning":
+        raise HTTPException(409, "Number route changed during cleanup; reload")
+    number.status = "retired"
+    number.revision += 1
+    number.updated_at = now_utc()
+    db.add(
+        AuditEvent(
+            actor_id=login.user_id,
+            agent_id=number.route_agent_id,
+            action="phone_number_deactivated",
+            details={"number_id": str(number_id), "revision": number.revision},
+            created_at=number.updated_at,
+        )
+    )
+    db.commit()
+    return phone_number_view(number)
+
+
+@app.post("/api/phone-numbers/{number_id}/reactivate")
+def reactivate_phone_number(
+    number_id: UUID,
+    body: PhoneRouteRevision,
+    db: Db,
+    settings: Config,
+    login: Annotated[LoginSession, Depends(require_csrf)],
+) -> dict[str, object]:
+    require_admin(login)
+    number = db.scalar(select(PhoneNumber).where(PhoneNumber.id == number_id).with_for_update())
+    if number is None:
+        raise HTTPException(404, "Number not found")
+    if number.revision != body.expected_revision:
+        raise HTTPException(409, "Number route was changed; reload and try again")
+    if number.status != "retired":
+        raise HTTPException(409, "Deactivate the number before reactivating it")
+    require_active_agent(db, number.route_agent_id, settings)
+    trunk_id: str | None = None
+    rule_id: str | None = None
+    try:
+        trunk_id, rule_id = provision_inbound(settings, number.id, number.e164)
+        number.sip_trunk_id = trunk_id
+        number.dispatch_rule_id = rule_id
+        number.status = "active"
+        number.revision += 1
+        number.updated_at = now_utc()
+        db.add(
+            AuditEvent(
+                actor_id=login.user_id,
+                agent_id=number.route_agent_id,
+                action="phone_number_reactivated",
+                details={"number_id": str(number_id), "revision": number.revision},
+                created_at=number.updated_at,
+            )
+        )
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        if trunk_id and rule_id:
+            try:
+                remove_inbound(settings, trunk_id, rule_id)
+            except Exception:
+                logger.exception("Could not roll back reactivated number %s", number_id)
+        raise HTTPException(503, "Could not reactivate inbound routing") from exc
     return phone_number_view(number)
 
 

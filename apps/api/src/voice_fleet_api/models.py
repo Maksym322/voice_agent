@@ -157,6 +157,7 @@ class PhoneNumber(Base):
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     sip_trunk_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     dispatch_rule_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

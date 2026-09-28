@@ -62,7 +62,11 @@ def create_inbound_session(
     settings = get_settings()
     with SessionLocal.begin() as db:
         number = db.get(PhoneNumber, number_id, with_for_update=True)
-        if number is None or not room_name.startswith(f"vf-in-{number_id}-"):
+        if (
+            number is None
+            or number.status != "active"
+            or not room_name.startswith(f"vf-in-{number_id}-")
+        ):
             raise ValueError("Inbound dispatch does not match a configured number")
         binding = db.scalar(
             select(DeploymentBinding).where(

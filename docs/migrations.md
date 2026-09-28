@@ -83,3 +83,9 @@ The downgrade refuses to run while number routes or inbound sessions exist:
 first remove the corresponding LiveKit resources and export/delete any inbound
 history. A database downgrade alone cannot remove provider-side SIP resources.
 
+Revision `0007_phone_route_lifecycle` adds `phone_numbers.status` with `active`,
+`deprovisioning`, and `retired` values. Existing rows become `active`; no SIP
+resources are changed by migration. API readiness expects 0007. Downgrade
+refuses if any route is not active, since the older API cannot represent an
+inactive route. Deactivate/reactivate through the API before a downgrade.
+

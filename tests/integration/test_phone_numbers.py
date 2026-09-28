@@ -76,8 +76,70 @@ def test_inbound_number_route_and_distinct_session_ids(
             ).status_code
             == 409
         )
-        login(client, "number-operator@example.com")
+        assert (
+            client.post(
+                f"/api/phone-numbers/{number['id']}/deactivate",
+                headers=headers(admin["csrf_token"]),
+                json={"expected_revision": 2},
+            ).status_code
+            == 409
+        )
+        with database.begin() as db:
+            first = db.get(VoiceSession, first_id)
+            second = db.get(VoiceSession, second_id)
+            assert first is not None and second is not None
+            first.status = second.status = "ended"
+
+        attempts = 0
+
+        def remove_synthetic(*_args: object) -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise RuntimeError("synthetic provider outage")
+
+        monkeypatch.setattr("voice_fleet_api.main.remove_inbound", remove_synthetic)
+        deactivate_url = f"/api/phone-numbers/{number['id']}/deactivate"
+        failed = client.post(
+            deactivate_url,
+            headers=headers(admin["csrf_token"]),
+            json={"expected_revision": 2},
+        )
+        assert failed.status_code == 503
+        deprovisioning = client.get("/api/phone-numbers").json()[0]
+        assert deprovisioning["status"] == "deprovisioning"
+        assert deprovisioning["livekit_configured"] is False
+        with pytest.raises(ValueError, match="configured number"):
+            worker.create_inbound_session(UUID(number["id"]), f"vf-in-{number['id']}-blocked")
+        retired = client.post(
+            deactivate_url,
+            headers=headers(admin["csrf_token"]),
+            json={"expected_revision": deprovisioning["revision"]},
+        )
+        assert retired.status_code == 200
+        assert retired.json()["status"] == "retired"
+        assert attempts == 2
+        reactivated = client.post(
+            f"/api/phone-numbers/{number['id']}/reactivate",
+            headers=headers(admin["csrf_token"]),
+            json={"expected_revision": retired.json()["revision"]},
+        )
+        assert reactivated.status_code == 200
+        assert reactivated.json()["status"] == "active"
+        third_id, _, _, _, _ = worker.create_inbound_session(
+            UUID(number["id"]), f"vf-in-{number['id']}-third"
+        )
+        assert third_id not in (first_id, second_id)
+        operator = login(client, "number-operator@example.com")
         assert client.get("/api/phone-numbers").status_code == 403
+        assert (
+            client.post(
+                deactivate_url,
+                headers=headers(operator["csrf_token"]),
+                json={"expected_revision": reactivated.json()["revision"]},
+            ).status_code
+            == 403
+        )
         assert client.get(f"/api/sessions/{first_id}").status_code == 404
     finally:
         app.dependency_overrides.pop(get_settings, None)

@@ -79,6 +79,7 @@ type PhoneNumber = {
 	e164_masked: string;
 	provider: string;
 	route_agent_id: string;
+	status: "active" | "deprovisioning" | "retired";
 	revision: number;
 	livekit_configured: boolean;
 	carrier_verified: boolean;
@@ -390,6 +391,39 @@ export function Console({
 			);
 		} catch (reason) {
 			setError(String(reason));
+		}
+	}
+
+	async function changeNumberState(number: PhoneNumber) {
+		const action = number.status === "retired" ? "reactivate" : "deactivate";
+		if (
+			action === "deactivate" &&
+			number.status === "active" &&
+			!window.confirm(`Deactivate inbound routing for ${number.e164_masked}?`)
+		)
+			return;
+		setNumberBusy(true);
+		setError("");
+		try {
+			const updated = await api<PhoneNumber>(
+				`/api/phone-numbers/${number.id}/${action}`,
+				identity,
+				"POST",
+				{ expected_revision: number.revision },
+			);
+			setNumbers((previous) =>
+				previous.map((item) => (item.id === number.id ? updated : item)),
+			);
+			setMessage(
+				action === "deactivate"
+					? "Inbound routing deactivated. Existing session history remains."
+					: "LiveKit route recreated. Confirm carrier delivery with a real call.",
+			);
+		} catch (reason) {
+			setError(String(reason));
+			void api<PhoneNumber[]>("/api/phone-numbers", identity).then(setNumbers);
+		} finally {
+			setNumberBusy(false);
 		}
 	}
 
@@ -737,7 +771,11 @@ export function Console({
 								<div key={number.id}>
 									<strong>{number.e164_masked}</strong> · {number.provider}
 									<p className="subtle">
-										LiveKit route configured · Carrier delivery unverified
+										{number.status === "active"
+											? "LiveKit route active · Carrier delivery unverified"
+											: number.status === "deprovisioning"
+												? "Route blocked · LiveKit cleanup needs retry"
+												: "Route inactive · Session history retained"}
 									</p>
 									<select
 										aria-label={`Route ${number.e164_masked} to agent`}
@@ -745,7 +783,10 @@ export function Console({
 										onChange={(event) =>
 											void changeNumberRoute(number, event.target.value)
 										}
-										disabled={identity.role !== "admin"}
+										disabled={
+											identity.role !== "admin" ||
+											number.status === "deprovisioning"
+										}
 									>
 										{agents.map((agent) => (
 											<option key={agent.id} value={agent.id}>
@@ -753,6 +794,19 @@ export function Console({
 											</option>
 										))}
 									</select>
+									{identity.role === "admin" && (
+										<button
+											type="button"
+											disabled={numberBusy}
+											onClick={() => void changeNumberState(number)}
+										>
+											{number.status === "retired"
+												? "Reactivate route"
+												: number.status === "deprovisioning"
+													? "Retry cleanup"
+													: "Deactivate route"}
+										</button>
+									)}
 								</div>
 							))}
 						</div>

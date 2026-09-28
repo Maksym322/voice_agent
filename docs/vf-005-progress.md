@@ -79,10 +79,9 @@ edit. No billed Twilio or LiveKit SIP call was made.
   remain limited to sessions they started.
 - No real inbound call or provider interoperability test has run. Docker-based
   PostgreSQL integration remains pending while Docker Desktop is unavailable.
-- Number removal/reprovisioning is not yet exposed. Register only an owned DID;
-  mistaken routes currently need an operator cleanup procedure. Carrier and
-  worker concurrent-call capacity is unverified, so production limits remain
-  an acceptance item.
+- At that point number removal/reprovisioning was not exposed; the route
+  lifecycle update below adds it. Carrier and worker concurrent-call capacity
+  remain unverified, so production limits remain an acceptance item.
 
 The inbound synthetic unit checks covered LiveKit request scope, the carrier
 allowlist guard, and SIP participant validation; 27 unit tests passed. Ruff,
@@ -93,3 +92,25 @@ skipped. A sandboxed Docker check was denied access to the Windows named pipe;
 the authorized check then stalled and was cancelled. Migration 0006 and the
 new HTTP/worker integration test therefore still need a disposable PostgreSQL
 run before live acceptance.
+
+## Route lifecycle update, 2026-09-28
+
+- Migration 0007 adds `active`, `deprovisioning`, and `retired` route states.
+  Deactivation is admin-only and waits for pending/active calls to finish.
+  Worker dispatch checks the state. LiveKit cleanup can be retried after a
+  partial failure; reactivation provisions new trunk/rule IDs for the same
+  inventory record.
+- The console exposes Deactivate, Retry cleanup, and Reactivate actions and
+  displays the server route state. Session history remains tied to the number.
+- Synthetic test coverage includes active-call protection, failed cleanup,
+  blocked dispatch, retry, reactivation, and distinct new session IDs. It
+  still needs execution against a disposable PostgreSQL database. No real
+  carrier call has been made.
+
+Manual acceptance after a carrier and owned number are available: create the
+route with verified carrier CIDRs; receive a call and confirm audio/transcripts;
+finish the call; deactivate the route and confirm the LiveKit resources are
+gone and a new call does not reach the agent; reactivate and repeat a real
+inbound call. Verify an operator cannot invoke the admin endpoints. Keep a
+carrier-side route disabled during cleanup if its provider retries failed SIP
+delivery.

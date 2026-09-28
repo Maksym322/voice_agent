@@ -131,8 +131,12 @@ def test_inbound_route_is_scoped_to_one_number_and_worker(monkeypatch: pytest.Mo
         "ST-synthetic",
         "SDR-synthetic",
     )
-    trunk = seen[0].trunk
-    rule = seen[1].dispatch_rule
+    trunk_request = seen[0]
+    rule_request = seen[1]
+    assert isinstance(trunk_request, api.CreateSIPInboundTrunkRequest)
+    assert isinstance(rule_request, api.CreateSIPDispatchRuleRequest)
+    trunk = trunk_request.trunk
+    rule = rule_request.dispatch_rule
     assert list(trunk.numbers) == ["+15551234567"]
     assert list(trunk.allowed_addresses) == ["192.0.2.0/24"]
     assert list(rule.trunk_ids) == ["ST-synthetic"]
@@ -160,3 +164,36 @@ def test_inbound_route_rejects_open_internet_allowlist() -> None:
             app_origin="http://localhost:8080",
             inbound_sip_allowed_addresses="0.0.0.0/0",
         )
+
+
+def test_inbound_cleanup_can_retry_after_rule_was_deleted(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://localhost/voice_fleet_test_unavailable",
+        app_origin="http://localhost:8080",
+        livekit_url="ws://localhost:7880",
+        livekit_browser_url="ws://localhost:7880",
+        livekit_api_key="synthetic-key",
+        livekit_api_secret="synthetic-secret-at-least-32-characters",
+    )
+    removed: list[str] = []
+
+    class FakeSip:
+        async def delete_sip_dispatch_rule(self, request: object) -> None:
+            removed.append("rule")
+            raise api.TwirpError("not_found", "already removed", status=404)
+
+        async def delete_sip_trunk(self, request: object) -> None:
+            removed.append("trunk")
+
+    class FakeLiveKit:
+        sip = FakeSip()
+
+        async def __aenter__(self) -> "FakeLiveKit":
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(api, "LiveKitAPI", lambda **_kwargs: FakeLiveKit())
+    asyncio.run(livekit_gateway._remove_inbound(settings, "ST-one", "SDR-one"))
+    assert removed == ["rule", "trunk"]

@@ -138,3 +138,21 @@ them because there is no operator who started the call. No live listen-in is
 included. One number does not imply a one-call limit; provider and worker
 capacity still control actual concurrency. Production rollout requires a real
 carrier delivery test and a verified allowlist.
+
+Admins can `POST /api/phone-numbers/{id}/deactivate` with
+`{"expected_revision": N}`. The server rejects it while that number has a
+pending or active call. It first commits `deprovisioning`, so the worker rejects
+new dispatches, then deletes the LiveKit rule and trunk. A 503 leaves the route
+blocked in `deprovisioning`; retry the same endpoint with the latest revision.
+Already deleted LiveKit resources are accepted on retry. Success marks the
+number `retired` while preserving its session history and E.164 inventory row.
+The list exposes the canonical status and reports `livekit_configured=true`
+only for an active route. Carrier delivery remains unverified even after
+reactivation.
+
+Admins can `POST /api/phone-numbers/{id}/reactivate` with the current revision
+after retirement. This provisions a new LiveKit trunk and dispatch rule for
+the same owned number and current carrier CIDR allowlist. It requires the
+selected agent to have an active binding. Both mutations require Origin, CSRF,
+admin role, and an optimistic revision. Route changes are blocked during
+deprovisioning. Neither operation configures the carrier or proves a real call.
