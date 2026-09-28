@@ -101,6 +101,7 @@ def create_inbound_session(
                 metrics={},
             )
         )
+        db.flush()
         db.add(
             SessionEvent(
                 session_id=session_id,

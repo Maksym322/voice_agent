@@ -124,3 +124,23 @@ gone and a new call does not reach the agent; reactivate and repeat a real
 inbound call. Verify an operator cannot invoke the admin endpoints. Keep a
 carrier-side route disabled during cleanup if its provider retries failed SIP
 delivery.
+
+## Disposable stack verification, 2026-09-28
+
+Docker Engine became available for an isolated-stack rerun. The first
+PostgreSQL run exposed an inbound session foreign-key failure: the session
+event could flush before its new parent session. The worker now flushes the
+session row before adding `inbound_dispatched`, within the same transaction.
+The existing distinct-session integration case exercises this path.
+
+After the fix, 28 unit and 20 PostgreSQL integration tests passed. The clean
+Compose startup check passed, including the current migration head, login,
+restart persistence, and database-unavailable behavior. Three disposable
+Chromium checks passed. Ruff, Mypy, web lint/typecheck, and the production web
+build passed. The initial Vite build failed with Windows sandbox `spawn EPERM`;
+the authorized rerun passed. Reports are in ignored
+`artifacts/vf005-*-20260928.json` files.
+
+This verifies the synthetic route and migration behavior, not real SIP
+delivery or audio. The carrier choice, owned number, stored trunk, paid test
+call, and owner listening acceptance remain pending.
