@@ -1,383 +1,263 @@
-# Home Installation Upgrade Runbook: `voice-fleet-home`
+﻿# Home Voice Fleet upgrade preparation
 
-This document provides a reviewable, provider-neutral runbook for safely preparing and upgrading the existing home laptop deployment of Voice Fleet from historical snapshot `dcc59c9` to the target tested upstream revision `23c633e16dc5c9a9ed27f643852a5b1977c3b793`.
+This is a **reviewable, unexecuted operator procedure**, not evidence of a completed
+upgrade. Keep one Bash session for its variables and execute one numbered phase at
+a time. A failed command means stop and investigate; do not paste the whole document
+as an unattended deployment script. No live voice, SIP or paid API test belongs here.
 
-> [!IMPORTANT]
-> **Safety Guardrails and Boundary Rules:**
-> - Never run `docker compose down --volumes` or destroy/prune the existing database volume `voice-fleet-home_db_data`.
-> - Never execute automatic schema downgrades against live data. Rollback is strictly defined as pairing old application images/code with a verified pre-upgrade database restore executed during an explicit maintenance window.
-> - Never print, copy, inspect, or log the contents of `.env`, home override compose files, user records, credentials, or session transcripts.
-> - Never create synthetic production accounts on the live system, enable paid third-party services, or initiate live audio/SIP calls during preparation or upgrade.
-> - Published configurations are immutable and each session pins its configuration version at startup. Upgrading code and schema does not alter existing published configuration snapshots.
+## Facts and prerequisites
 
----
+- Existing snapshot: documented `dcc59c9`, at `/home/waks/projects/voice`.
+  It is an extracted archive **without `.git`**, not a Git checkout.
+- Target code: `23c633e16dc5c9a9ed27f643852a5b1977c3b793` from
+  `Maksym322/voice_agent`, branch `vf-003-voice-playground`.
+  Its historical hosted CI run36487364284 passed; this does not prove a home upgrade.
+- Expected Compose project `voice-fleet-home`, DB volume `voice-fleet-home_db_data`,
+  baseline schema `0002_agent_configurations`; verify all three on the actual host.
+- The home installation uses **both** `compose.yaml` and `compose.home.yaml`.
+  Preserve the home override and original ignored `.env` in their existing directory.
+  Reference them explicitly; do not print, duplicate or commit their secret contents.
+- Observed 2026-10-21: readiness200; Docker socket root:docker0660; waks is not
+  in docker group; `sudo -n true` says a password is required. Privileged Docker
+  inventory, backup, restore and migrations have not run in this preparation task.
+  The owner must execute Docker commands with interactive sudo. No group, sudoers,
+  router, SSH or public-port changes are required by this procedure.
 
-## 1. Current State & Access Blocker
+Provider configuration and manual voice acceptance remain separate. The current
+worker implements Deepgram/Cartesia plus OpenAI or Gemini selected in the published
+agent version. Antigravity coding authorization does not supply runtime API keys.
+Do not change existing immutable published agent configurations as an upgrade step.
 
-### 1.1 Historical Evidence vs. Unexecuted Host Checks
-- **Historical Evidence (Observed 2026-10-21 via key-authenticated SSH):**
-  - Application readiness endpoint `/health/ready` responded with HTTP `200`.
-  - Docker socket `/var/run/docker.sock` has ownership `root:docker` and permissions `0660`.
-  - The unprivileged SSH user `waks` is **not** a member of the `docker` group.
-  - Non-interactive sudo check (`sudo -n true`) exits nonzero and reports that a password is required.
-  - Previous deployment documentation names project `voice-fleet-home`, deployment directory `/home/waks/projects/voice`, database volume `voice-fleet-home_db_data`, and snapshot `dcc59c9`.
-- **Unexecuted Host Checks (Must NOT be claimed as already run):**
-  - Live Docker container inspection (`docker ps`, `docker inspect`).
-  - Active PostgreSQL database connection, direct table row inspections, or live volume integrity scans.
-  - Direct read of the existing production `.env` file or Docker Compose override files.
-  - Live migration verification or owner acceptance on the laptop host.
+## 1. Establish explicit paths and inspect the actual installation
 
-### 1.2 Access Blocker & Owner Requirement
-Because the SSH user `waks` lacks Docker daemon permissions and non-interactive `sudo` access:
-- **Blocker:** Automated agents or unprivileged scripts cannot query Docker or invoke privileged administrative commands remotely.
-- **Resolution:** The system owner must run all privileged and Docker-interacting commands **interactively in an interactive shell session** (with interactive `sudo` or an authorized user).
-- **Rule:** Do not attempt to alter user group memberships, edit `/etc/sudoers`, or weaken permissions.
-
----
-
-## 2. Environment & Inventory Verification Phase
-
-Before executing any data mutation, directory changes, or service stops, the operator must verify the exact project naming and directory paths.
-
-### 2.1 Inventory Parameter Matrix
-Confirm the following parameters match the host environment:
-
-| Parameter | Required Value | Purpose |
-| :--- | :--- | :--- |
-| **Project Name** | `voice-fleet-home` | Compose project namespace (`-p voice-fleet-home`) |
-| **Existing Source Directory** | `/home/waks/projects/voice` | Current live deployment checkout |
-| **Current Baseline Snapshot** | `dcc59c9` | Commit corresponding to VF-002 agent configurations |
-| **Target Upstream Revision** | `23c633e16dc5c9a9ed27f643852a5b1977c3b793` | Current tested upstream revision (includes VF-003, VF-009, VF-005) |
-| **Named DB Volume** | `voice-fleet-home_db_data` | Persistent PostgreSQL data volume |
-| **Staging Release Directory** | `/home/waks/projects/voice-releases/23c633e` | Isolated directory for target revision |
-| **Backup Storage Directory** | `/home/waks/backups/voice-fleet` | Restrictively secured backup destination |
-
-### 2.2 Host Verification Commands
-Run interactively as the system owner on the laptop:
+Run on the laptop as waks. Review any private home override locally; it must still
+be suitable when combined with the staged target's base Compose file. Never run
+`docker compose config` without `--quiet`, since expanded output contains secrets.
 
 ```bash
-# Verify current checkout location and git revision
-cd /home/waks/projects/voice
-pwd
-git rev-parse HEAD
-# Ensure HEAD starts with dcc59c9...
-
-# Verify running Compose services and project name using sudo
-sudo docker compose -p voice-fleet-home ps
-
-# Verify the persistent volume exists and matches voice-fleet-home_db_data
-sudo docker volume ls --filter name=voice-fleet-home_db_data
-
-# Verify application readiness before any changes
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/health/ready
-# Expected: 200
-```
-> [!CAUTION]
-> If the git commit is not `dcc59c9`, if the project name differs, or if `/health/ready` does not return `200`, halt execution immediately and investigate. Do not proceed with migration.
-
----
-
-## 3. Database Backup & Independent Verification
-
-To guarantee zero data loss, create a restricted PostgreSQL custom-format backup and verify it by restoring into an ephemeral disposable database before making any code or migration changes.
-
-### 3.1 Create Secure Backup Directory
-```bash
-# Create backup storage directory with restrictive permissions
-mkdir -p /home/waks/backups/voice-fleet
-chmod 700 /home/waks/backups/voice-fleet
-BACKUP_FILE="/home/waks/backups/voice-fleet/voice_fleet_home_pre_upgrade_$(date +%Y%m%d_%H%M%S).dump"
+set -Eeuo pipefail
+umask 077
+PROJECT=voice-fleet-home
+OLD=/home/waks/projects/voice
+ENV_FILE="$OLD/.env"
+HOME_FILE="$OLD/compose.home.yaml"
+TARGET=23c633e16dc5c9a9ed27f643852a5b1977c3b793
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+RUN="/home/waks/backups/voice-fleet/$STAMP"
+RELEASE="/home/waks/projects/voice-releases/$TARGET"
+test -f "$ENV_FILE" && test -f "$HOME_FILE"
+mkdir -p /home/waks/backups/voice-fleet /home/waks/projects/voice-releases
+mkdir "$RUN"
+chmod 700 "$RUN"
+oldc() {
+  sudo docker compose --project-directory "$OLD" -p "$PROJECT" \
+    --env-file "$ENV_FILE" -f "$OLD/compose.yaml" -f "$HOME_FILE" "$@"
+}
+oldc config --quiet
+oldc ps -a
+DB_CONTAINER=$(oldc ps -q db)
+test -n "$DB_CONTAINER" && test "$(printf '%s\n' "$DB_CONTAINER" | wc -l)" -eq 1
+sudo docker inspect --format '{{json .Mounts}}' "$DB_CONTAINER"
+# STOP unless the mount at /var/lib/postgresql/data is the named volume
+# voice-fleet-home_db_data, and the running project is the expected installation.
+oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d voice_fleet \
+  -Atc 'SELECT version_num FROM alembic_version;'
+# STOP unless the revision is 0002_agent_configurations.
+curl --fail --silent --show-error http://127.0.0.1:8080/health/ready
 ```
 
-### 3.2 Execute Restricted Custom-Format Backup
-Extract the database backup in PostgreSQL custom format (`-Fc`), which allows selective inspection and restoration with `pg_restore`:
+The separately staged `~/voice-upgrade/inventory.py` can check the exact volume
+and return only service states, schema and aggregate counts. It makes no changes.
+No existing admin account is assumed: if none exists, first-admin creation is a
+separate interactive owner action from README, never a fabricated acceptance pass.
 
-```bash
-# Run pg_dump within the running db container of project voice-fleet-home
-sudo docker compose -p voice-fleet-home exec -T db \
-  pg_dump -U voice_fleet -d voice_fleet -Fc > "${BACKUP_FILE}"
+## 2. Preserve the old executable images before target builds reuse their tags
 
-# Secure file permissions immediately
-chmod 600 "${BACKUP_FILE}"
-
-# Verify backup file size is non-zero
-ls -lh "${BACKUP_FILE}"
-```
-
-### 3.3 Verify Backup in Disposable Database
-To confirm backup integrity without risking live data:
-1. Create a temporary disposable database inside the existing PostgreSQL container.
-2. Restore the backup dump into the disposable database.
-3. Compare schema and aggregate counts without logging personal user data or credentials.
-4. Drop the disposable database immediately.
+The source directory alone cannot roll back Compose image tags. Pin and save the
+actual old images while their containers still identify them. Stop if any required
+container/image cannot be identified; do not guess or rebuild a substitute here.
 
 ```bash
-DISPOSABLE_DB="vf_verify_$(date +%s)"
-
-# 1. Create temporary disposable database
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d postgres -c "CREATE DATABASE ${DISPOSABLE_DB};"
-
-# 2. Restore dump into the disposable database
-sudo docker compose -p voice-fleet-home exec -i db \
-  pg_restore -U voice_fleet -d "${DISPOSABLE_DB}" --no-owner --role=voice_fleet < "${BACKUP_FILE}"
-
-# 3. Compare table list and synthetic aggregate row counts between live DB and verified DB
-echo "--- Comparing live DB and disposable DB table list ---"
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d voice_fleet -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;" > /tmp/tables_live.txt
-
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d "${DISPOSABLE_DB}" -t -A -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;" > /tmp/tables_disposable.txt
-
-diff -u /tmp/tables_live.txt /tmp/tables_disposable.txt
-# If diff is empty, schema table structures match.
-
-echo "--- Comparing aggregate row counts ---"
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d voice_fleet -t -A -c \
-  "SELECT 'users', count(*) FROM users UNION ALL SELECT 'agents', count(*) FROM agents UNION ALL SELECT 'agent_versions', count(*) FROM agent_versions UNION ALL SELECT 'deployment_bindings', count(*) FROM deployment_bindings UNION ALL SELECT 'alembic_version', count(*) FROM alembic_version;" > /tmp/counts_live.txt
-
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d "${DISPOSABLE_DB}" -t -A -c \
-  "SELECT 'users', count(*) FROM users UNION ALL SELECT 'agents', count(*) FROM agents UNION ALL SELECT 'agent_versions', count(*) FROM agent_versions UNION ALL SELECT 'deployment_bindings', count(*) FROM deployment_bindings UNION ALL SELECT 'alembic_version', count(*) FROM alembic_version;" > /tmp/counts_disposable.txt
-
-diff -u /tmp/counts_live.txt /tmp/counts_disposable.txt
-# Ensure count diff is completely empty.
-
-# Clean up verification text files
-rm -f /tmp/tables_live.txt /tmp/tables_disposable.txt /tmp/counts_live.txt /tmp/counts_disposable.txt
-
-# 4. Cleanly drop the temporary disposable database
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d postgres -c "DROP DATABASE ${DISPOSABLE_DB};"
-```
-> [!NOTE]
-> The queries above select only table names and aggregate row counts (`count(*)`). They do not output names, emails, hashes, tokens, or prompt contents, ensuring strict confidentiality.
-
----
-
-## 4. Staging the Target Release
-
-The upgrade uses a separate release directory to ensure that the existing checkout `/home/waks/projects/voice` remains untouched and can serve as an immediate rollback reference.
-
-### 4.1 Clone / Fetch Target Revision
-```bash
-# Define release paths
-RELEASE_DIR="/home/waks/projects/voice-releases/23c633e"
-mkdir -p /home/waks/projects/voice-releases
-
-# Fetch target revision into release directory from git upstream
-if [ ! -d "${RELEASE_DIR}" ]; then
-  git clone /home/waks/projects/voice "${RELEASE_DIR}"
-fi
-
-cd "${RELEASE_DIR}"
-git fetch origin
-git checkout 23c633e16dc5c9a9ed27f643852a5b1977c3b793
-git status
+printf 'services:\n' > "$RUN/rollback-images.yaml"
+for service in api web worker migrate; do
+  container=$(oldc ps -a -q "$service")
+  test -n "$container" && test "$(printf '%s\n' "$container" | wc -l)" -eq 1
+  image=$(sudo docker inspect --format '{{.Image}}' "$container")
+  tag="vf-home-rollback-$STAMP-$service:local"
+  tag=${tag,,}
+  sudo docker image tag "$image" "$tag"
+  printf '  %s:\n    image: %s\n    pull_policy: never\n' "$service" "$tag" \
+    >> "$RUN/rollback-images.yaml"
+  printf '%s %s %s\n' "$service" "$image" "$tag" >> "$RUN/old-images.txt"
+done
+mapfile -t OLD_TAGS < <(awk '{print $3}' "$RUN/old-images.txt")
+sudo docker image save "${OLD_TAGS[@]}" > "$RUN/old-images.tar.part"
+test -s "$RUN/old-images.tar.part"
+mv "$RUN/old-images.tar.part" "$RUN/old-images.tar"
+sha256sum "$RUN/old-images.tar" > "$RUN/old-images.tar.sha256"
 ```
 
-### 4.2 Preserve Existing Configuration Files
-Preserve the existing `.env` and any local Compose overrides (e.g., `compose.override.yaml`) by copying them directly from the old directory without echoing or inspecting their contents:
+These files contain no env values, but keep the backup directory private. Retain
+the old source, home override and pinned image archive with the DB backup. Image
+save success/checksum is not a full restore rehearsal; that still requires an
+isolated environment before a production rollback can be claimed verified.
+
+## 3. Stage and build target code without overwriting the running directory
+
+`~/src/voice` is the separate Git checkout. Do not clone the extracted live directory.
+A fresh release directory prevents overwriting an earlier attempt or local files.
 
 ```bash
-# Copy .env and local override without printing content
-cp /home/waks/projects/voice/.env "${RELEASE_DIR}/.env"
-chmod 600 "${RELEASE_DIR}/.env"
-
-if [ -f /home/waks/projects/voice/compose.override.yaml ]; then
-  cp /home/waks/projects/voice/compose.override.yaml "${RELEASE_DIR}/compose.override.yaml"
-fi
+git -C /home/waks/src/voice fetch origin
+git -C /home/waks/src/voice cat-file -e "$TARGET^{commit}"
+mkdir "$RELEASE"
+git -C /home/waks/src/voice archive "$TARGET" | tar -x -C "$RELEASE"
+printf '%s\n' "$TARGET" > "$RELEASE/.voice-release-commit"
+newc() {
+  sudo docker compose --project-directory "$RELEASE" -p "$PROJECT" \
+    --env-file "$ENV_FILE" -f "$RELEASE/compose.yaml" -f "$HOME_FILE" "$@"
+}
+newc config --quiet
+newc build migrate api web
 ```
 
-### 4.3 Build Staged Container Images
-Build the container images in the staged directory ahead of time to minimize downtime during the maintenance window:
-```bash
-cd "${RELEASE_DIR}"
-sudo docker compose -p voice-fleet-home build
-```
+The private `.env` and the home override remain in `$OLD`; they are not copied.
+`config --quiet` validates interpolation/configuration, not provider access,
+network reachability, account ownership or live audio. Keep the worker stopped
+through this provider-neutral update, even if runtime keys already exist.
 
----
+## 4. Freeze application writes, back up, and verify a disposable restore
 
-## 5. Upgrade & Forward Migration Execution
-
-### 5.1 Understanding Forward Migrations (0002 through 0007)
-The baseline snapshot `dcc59c9` was at Alembic revision `0002_agent_configurations`. Target revision `23c633e16dc5c9a9ed27f643852a5b1977c3b793` advances schema through the following sequential migrations:
-
-1. **`0003_voice_sessions`:**
-   - Adds `voice_sessions` and `session_events` tables.
-   - Pins immutable agent version foreign keys, session status, lifecycle timestamps, metrics, and error fields.
-   - Leaves existing users, login sessions, agents, and configuration versions untouched.
-2. **`0004_operator_console`:**
-   - Adds `channel` column to sessions (defaults to `browser`) and `source` column to events.
-   - Adds indexes for operator console queries, `session_diagnostics` table, and per-user `operator_views` table.
-   - Adds `room_cleanup_pending` boolean to handle graceful cleanup retries.
-3. **`0005_outbound_test`:**
-   - Adds `outbound_destination_masked` and `outbound_provider_call_id` to voice sessions.
-   - Restricts channel values to `browser` or `phone`. Existing browser sessions remain valid.
-4. **`0006_phone_numbers`:**
-   - Adds `phone_numbers` table for SIP trunk and inbound routing metadata.
-   - Adds `direction` (`browser`, `inbound`, `outbound`) and optional `phone_number_id` foreign key to `voice_sessions`.
-   - Backfills existing sessions without rewriting history.
-5. **`0007_phone_route_lifecycle`:**
-   - Adds `status` enum column (`active`, `deprovisioning`, `retired`) to `phone_numbers`.
-   - Backfills existing phone number records to `active`.
-   - API `/health/ready` check validates that the schema is at revision `0007`.
-
-### 5.2 Step-by-Step Maintenance Execution
-Perform these steps interactively during a designated maintenance window:
+Schedule downtime with the owner. No user/agent edits may occur between backup,
+verification and migration. Stop writers **before** dumping/counting; otherwise
+live writes invalidate comparisons and any zero-loss assumption. All checks below
+must pass before migration. A failure can leave the old app stopped; investigate
+and use its pinned old images to resume only if no forward migration occurred.
 
 ```bash
-# 1. Stop web and api traffic from the old deployment to prevent concurrent transactions
-cd /home/waks/projects/voice
-sudo docker compose -p voice-fleet-home stop web api worker
+oldc stop web api worker
+BACKUP="$RUN/pre-upgrade.dump"
+oldc exec -T db pg_dump -U voice_fleet -d voice_fleet -Fc > "$BACKUP.part"
+test -s "$BACKUP.part"
+oldc exec -T db pg_restore --list < "$BACKUP.part" > "$RUN/backup.toc"
+mv "$BACKUP.part" "$BACKUP"
+sha256sum "$BACKUP" > "$RUN/pre-upgrade.dump.sha256"
+VERIFY_DB="vf_upgrade_verify_${STAMP,,}"
+oldc exec -T db createdb -U voice_fleet -O voice_fleet "$VERIFY_DB"
+oldc exec -T db pg_restore --exit-on-error --no-owner -U voice_fleet \
+  -d "$VERIFY_DB" < "$BACKUP"
 
-# 2. Switch to staged release directory
-cd /home/waks/projects/voice-releases/23c633e
-
-# 3. Apply Alembic migrations to head (revision 0007) using one-shot container
-sudo docker compose -p voice-fleet-home run --rm api alembic upgrade head
-
-# 4. Bring up the full updated stack
-sudo docker compose -p voice-fleet-home up -d
-
-# 5. Check container process status
-sudo docker compose -p voice-fleet-home ps
+# Schema dumps include columns, constraints, indexes and migration metadata.
+# Remove only pg_dump's random psql restrict/unrestrict guard keys for comparison.
+for database in voice_fleet "$VERIFY_DB"; do
+  oldc exec -T db pg_dump -U voice_fleet -d "$database" --schema-only \
+    --no-owner --no-privileges | sed -E '/^\\(un)?restrict /d' \
+    > "$RUN/schema-$database.sql"
+  oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d "$database" -Atc \
+    "SELECT 'users',count(*) FROM users UNION ALL SELECT 'agents',count(*) FROM agents UNION ALL SELECT 'agent_versions',count(*) FROM agent_versions UNION ALL SELECT 'deployment_bindings',count(*) FROM deployment_bindings;" \
+    > "$RUN/counts-$database.txt"
+  oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d "$database" \
+    -Atc 'SELECT version_num FROM alembic_version;' > "$RUN/revision-$database.txt"
+done
+diff -q "$RUN/schema-voice_fleet.sql" "$RUN/schema-$VERIFY_DB.sql"
+diff -q "$RUN/counts-voice_fleet.txt" "$RUN/counts-$VERIFY_DB.txt"
+diff -q "$RUN/revision-voice_fleet.txt" "$RUN/revision-$VERIFY_DB.txt"
+# Only the exact disposable DB created above is removed; the real volume is retained.
+[[ "$VERIFY_DB" == vf_upgrade_verify_* ]]
+oldc exec -T db dropdb -U voice_fleet "$VERIFY_DB"
+printf 'Backup restored successfully into a disposable DB; schema/counts matched.\n'
 ```
 
-### 5.3 Post-Migration System Behavior Checks
-Confirm the expected runtime behaviors:
+Mode077 applies while files are created, including partial dumps. A dump file,
+nonzero size or table-name list alone is insufficient evidence of recoverability.
+Do not print table rows, account details, transcripts or dump contents. The schema
+and aggregate comparison is not an application-level restore rehearsal or proof
+of live provider compatibility. Do not proceed on a mismatch.
 
-- **Database Preservation Checks (Aggregate Only):**
-  Verify that existing accounts, agents, versions, and bindings were preserved without inspecting private data:
-  ```bash
-  sudo docker compose -p voice-fleet-home exec -T db \
-    psql -U voice_fleet -d voice_fleet -c \
-    "SELECT version_num FROM alembic_version;"
-  # Expected: 0007_phone_route_lifecycle
+## 5. Apply forward migrations and start the local web/API services
 
-  sudo docker compose -p voice-fleet-home exec -T db \
-    psql -U voice_fleet -d voice_fleet -c \
-    "SELECT count(*) AS total_users FROM users; SELECT count(*) AS total_agents FROM agents; SELECT count(*) AS total_versions FROM agent_versions;"
-  ```
-- **Loopback Origin & Readiness Check:**
-  The API binds to `127.0.0.1` and verifies `APP_ORIGIN` (default `http://localhost:8080`).
-  ```bash
-  curl -i http://127.0.0.1:8080/health/ready
-  # Expected: HTTP/1.1 200 OK
-  ```
-  If migrations are incomplete or database connection fails, the endpoint returns `503 Service Unavailable`.
-
-- **Explicitly Unconfigured Worker Behavior:**
-  When `LIVEKIT_URL`, `LIVEKIT_API_KEY`, or `LIVEKIT_API_SECRET` are not set in `.env`, the worker container exits intentionally with:
-  `Voice Fleet worker unavailable: LiveKit is not configured.`
-  This is expected on home installations that do not run an active LiveKit server. Check worker logs to confirm clean startup handling:
-  ```bash
-  sudo docker compose -p voice-fleet-home logs worker
-  ```
-
----
-
-## 6. Rollback Strategy
-
-> [!WARNING]
-> Reverting code files alone after forward migrations have been applied is **not** a valid rollback procedure.
-
-### 6.1 Rollback Principle
-Downward Alembic migrations (e.g., `0007 -> 0006 -> ... -> 0002`) are restrictive:
-- Revisions `0007` and `0006` refuse to downgrade if phone routes or inbound sessions exist.
-- Downward migration removes session event history, diagnostics, operator views, and voice tables.
-- An automatic database downgrade on a live system risks data corruption.
-
-Therefore, safe rollback is strictly defined as:
-**Paired reinstatement of the old code/images (`dcc59c9`) together with restoring the pre-upgrade PostgreSQL backup created in Section 3.**
-
-### 6.2 Rollback Procedure
-If the upgrade fails health checks or owner manual verification:
+The old baseline should already be0002. The target adds0003 voice sessions,
+0004 console/diagnostics,0005 phone metadata,0006 number routes and0007 route
+lifecycle. See `docs/migrations.md`; do not run a schema downgrade.
 
 ```bash
-# 1. Stop all services in the release directory
-cd /home/waks/projects/voice-releases/23c633e
-sudo docker compose -p voice-fleet-home stop
-
-# 2. Start only the database service to perform restore
-sudo docker compose -p voice-fleet-home up -d db
-sudo docker compose -p voice-fleet-home exec -T db pg_isready -U voice_fleet -d voice_fleet
-
-# 3. Restore the pre-upgrade backup into voice_fleet database
-# Terminate existing connections and recreate the database
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='voice_fleet' AND pid <> pg_backend_pid();"
-
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d postgres -c "DROP DATABASE voice_fleet; CREATE DATABASE voice_fleet OWNER voice_fleet;"
-
-# Restore custom-format dump
-sudo docker compose -p voice-fleet-home exec -i db \
-  pg_restore -U voice_fleet -d voice_fleet --no-owner --role=voice_fleet < "${BACKUP_FILE}"
-
-# Verify restored schema version
-sudo docker compose -p voice-fleet-home exec -T db \
-  psql -U voice_fleet -d voice_fleet -c "SELECT version_num FROM alembic_version;"
-# Expected: 0002_agent_configurations
-
-# 4. Return to old project checkout and restart containers with old images
-cd /home/waks/projects/voice
-sudo docker compose -p voice-fleet-home up -d
-
-# 5. Verify readiness on the restored old release
-curl -i http://127.0.0.1:8080/health/ready
-# Expected: HTTP/1.1 200 OK
+newc run --rm --no-deps migrate
+newc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d voice_fleet \
+  -Atc 'SELECT version_num FROM alembic_version;'
+# Expected: 0007_phone_route_lifecycle; STOP on any other value.
+newc up -d --no-build api web
+newc ps -a
+curl --fail --silent --show-error http://127.0.0.1:8080/health/ready
+# Wait for startup before concluding failure; never bypass a failed readiness check.
+newc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d voice_fleet -Atc \
+  "SELECT 'users',count(*) FROM users UNION ALL SELECT 'agents',count(*) FROM agents UNION ALL SELECT 'agent_versions',count(*) FROM agent_versions UNION ALL SELECT 'deployment_bindings',count(*) FROM deployment_bindings;" \
+  > "$RUN/counts-after-upgrade.txt"
+diff -q "$RUN/counts-voice_fleet.txt" "$RUN/counts-after-upgrade.txt"
 ```
 
----
+The host web/DB ports stay loopback through the explicit base+home configuration.
+The API listens inside its container; do not expose it publicly. Use the existing
+SSH forwarding and browser origin `http://localhost:8080`. No router port is opened.
+The worker is intentionally not started, so claim neither online status nor working
+audio. Without LiveKit settings its documented startup message is
+`Voice Fleet worker unavailable: LiveKit is not configured.` Starting a configured
+worker and live acceptance need a separate controlled step and agreed service quota.
 
-## 7. Repository Checks & Manual Acceptance Steps
+After aggregates pass, the owner verifies existing admin login/logout; unauthorized
+`/api/auth/me` returns401; existing agents/versions/bindings are present; a test draft
+can be published and activated; and `newc restart api web` preserves those results
+after readiness recovers. Use test content, never provider calls. Accounts or existing
+agent versions must not be edited silently to manufacture an acceptance result.
 
-### 7.1 Executable Check Commands (Code Repository)
-These commands are executed in the local repository workspace to verify code standards prior to handoff:
+## 6. Recovery branch: paired database restore and pinned old images
 
-```powershell
-# Python linting and code formatting
-uv run --frozen --all-packages ruff check .
-uv run --frozen --all-packages ruff format --check .
+This branch is **manual, unexecuted recovery guidance**, not an automatic rollback.
+Keep maintenance in effect and preserve any post-upgrade DB before switching.
+A backup restores state as of its snapshot; later writes need separate reconciliation.
+Do not claim code-only rollback or zero data loss. First verify checksums and that
+`$RUN`, `$BACKUP` and the old-image manifest belong to this exact upgrade attempt.
+If the Bash session/variables were lost, stop and reconstruct them from the private
+manifest; do not pick the newest backup blindly.
 
-# Python typecheck
-uv run --frozen --all-packages mypy apps/api/src apps/voice-worker/src tests
-
-# Python unit test suite
-uv run --frozen --all-packages pytest tests/unit
-
-# Web lint, typecheck, and production build
-npm run lint
-npm run typecheck
-npm run build
+```bash
+sha256sum --check "$RUN/pre-upgrade.dump.sha256"
+sha256sum --check "$RUN/old-images.tar.sha256"
+newc stop web api worker
+sudo docker image load --input "$RUN/old-images.tar"
+RECOVER_DB="vf_upgrade_recover_${STAMP,,}"
+FAILED_DB="vf_upgrade_preserved_${STAMP,,}"
+oldc exec -T db createdb -U voice_fleet -O voice_fleet "$RECOVER_DB"
+oldc exec -T db pg_restore --exit-on-error --no-owner -U voice_fleet \
+  -d "$RECOVER_DB" < "$BACKUP"
+oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d "$RECOVER_DB" \
+  -Atc 'SELECT version_num FROM alembic_version;'
+# STOP unless restored revision is 0002_agent_configurations.
+# Recheck its schema/aggregate counts using phase4 before switching databases.
+# Each ALTER executes separately; never combine DROP/CREATE into a psql transaction.
+oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d postgres -Atc \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='voice_fleet' AND pid<>pg_backend_pid();" \
+  > "$RUN/recovery-disconnects.txt"
+oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d postgres -c \
+  "ALTER DATABASE voice_fleet RENAME TO $FAILED_DB;"
+oldc exec -T db psql -X -v ON_ERROR_STOP=1 -U voice_fleet -d postgres -c \
+  "ALTER DATABASE $RECOVER_DB RENAME TO voice_fleet;"
+oldc -f "$RUN/rollback-images.yaml" up -d --no-build api web
+curl --fail --silent --show-error http://127.0.0.1:8080/health/ready
 ```
 
-### 7.2 Manual Owner Acceptance Criteria (On Deployed Host)
-The system owner must manually verify the upgraded installation in the browser (e.g. at `http://localhost:8080`):
+Both databases and the real named volume are retained. If the second rename fails,
+keep services stopped and have an operator reconcile the names; do not retry blindly.
+No `down --volumes`, volume pruning, database deletion, automatic downgrade or
+worker/provider restart is part of this recovery branch. Remove preserved databases
+or backups only as a separate owner-controlled retention action.
 
-1. **Admin Authentication:**
-   - Sign in using an existing administrator account created prior to the upgrade.
-   - Confirm successful authentication and session cookie issuance (`set-cookie` with `SameSite=Lax`, `HttpOnly`).
-   - Confirm unauthenticated requests to `/api/auth/me` return 401.
-2. **Draft, Publish, and Activate Workflow:**
-   - Navigate to the Agent Editor in the dashboard.
-   - Modify an existing agent draft or create a new test draft configuration.
-   - Publish a new immutable version snapshot (e.g. v2). Confirm the revision increments and cannot be modified in place.
-   - Activate the new version binding on the `local` environment.
-   - Verify that the active version indicator updates immediately.
-3. **Restart Persistence:**
-   - Stop and restart the Compose services using `sudo docker compose -p voice-fleet-home restart`.
-   - Confirm `/health/ready` returns 200 after restart.
-   - Refresh the dashboard in the browser; verify that the active session and newly activated agent binding persist without data loss.
+## Repository checks and actual acceptance status
 
----
-
-## 8. Current Handoff Status & Non-Claims
-
-> [!IMPORTANT]
-> **Explicit Non-Claims:**
-> - Neither this runbook nor this preparation task claims that the home upgrade, live database backup, disposable restore verification, schema migration 0002–0007, or owner manual acceptance have been executed on the target host.
-> - Host execution is blocked until the system owner executes the privileged commands interactively in accordance with Section 1 and Section 2.
+The declared `.fleet/project.json` runs existing Python lint, scoped format, types
+and unit checks with a synthetic DATABASE_URL for unit collection; no API key is
+required. Web checks remain `npm run lint`, `npm run typecheck`, `npm run build`.
+Disposable PostgreSQL integration/startup checks are documented in README; they are
+separate from this live installation procedure and must not target its database.
+Passing these source checks does not execute or validate this shell runbook against
+the laptop. Home backup, restore, image recovery, migration, admin login and owner
+acceptance are all **unexecuted** in this preparation task.
