@@ -24,6 +24,73 @@ const SUPPORTED_MODELS: Record<string, { id: string; label: string }[]> = {
 	openai: [{ id: "gpt-4o-mini", label: "gpt-4o-mini" }],
 };
 
+const VALID_PAIRS: Record<string, readonly string[]> = {
+	google: ["gemini-2.5-flash-lite", "gemini-3.5-flash-lite"],
+	openai: ["gpt-4o-mini"],
+};
+
+function validateVoiceConfig(cfg: unknown): {
+	valid: boolean;
+	error?: string;
+	effectiveProvider: "google" | "openai";
+	effectiveModel: string;
+} {
+	if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) {
+		return {
+			valid: false,
+			error: "Configuration must be a JSON object.",
+			effectiveProvider: "openai",
+			effectiveModel: "gpt-4o-mini",
+		};
+	}
+	const rec = cfg as Record<string, unknown>;
+	if (rec.voice === undefined || rec.voice === null) {
+		return {
+			valid: true,
+			effectiveProvider: "openai",
+			effectiveModel: "gpt-4o-mini",
+		};
+	}
+	if (typeof rec.voice !== "object" || Array.isArray(rec.voice)) {
+		return {
+			valid: false,
+			error: "voice must be a JSON object.",
+			effectiveProvider: "openai",
+			effectiveModel: "gpt-4o-mini",
+		};
+	}
+	const voice = rec.voice as Record<string, unknown>;
+	const provider =
+		typeof voice.llm_provider === "string" ? voice.llm_provider : "openai";
+	const model =
+		typeof voice.llm_model === "string" ? voice.llm_model : "gpt-4o-mini";
+
+	if (provider !== "openai" && provider !== "google") {
+		return {
+			valid: false,
+			error: `voice.llm_provider must be one of openai, google (got ${String(provider)})`,
+			effectiveProvider: "openai",
+			effectiveModel: model,
+		};
+	}
+
+	const allowedModels = VALID_PAIRS[provider];
+	if (!allowedModels.includes(model)) {
+		return {
+			valid: false,
+			error: `voice.llm_model must be one of ${allowedModels.join(", ")} for ${provider}`,
+			effectiveProvider: provider as "google" | "openai",
+			effectiveModel: model,
+		};
+	}
+
+	return {
+		valid: true,
+		effectiveProvider: provider as "google" | "openai",
+		effectiveModel: model,
+	};
+}
+
 function extractVoice(cfg: Record<string, unknown> | null | undefined): {
 	provider: string;
 	model: string;
@@ -36,11 +103,7 @@ function extractVoice(cfg: Record<string, unknown> | null | undefined): {
 	const provider =
 		typeof voice.llm_provider === "string" ? voice.llm_provider : "openai";
 	const model =
-		typeof voice.llm_model === "string"
-			? voice.llm_model
-			: provider === "google"
-				? "gemini-3.5-flash-lite"
-				: "gpt-4o-mini";
+		typeof voice.llm_model === "string" ? voice.llm_model : "gpt-4o-mini";
 	return { provider, model };
 }
 
@@ -111,9 +174,10 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 		setName(agent.name);
 		setInstructions(String(agent.config.instructions ?? ""));
 		setConfigText(JSON.stringify(agent.config, null, 2));
-		const voice = extractVoice(agent.config);
-		setEditProvider(voice.provider);
-		setEditModel(voice.model);
+		const voiceCheck = validateVoiceConfig(agent.config);
+		setEditProvider(voiceCheck.effectiveProvider);
+		setEditModel(voiceCheck.effectiveModel);
+		setError("");
 		const versionsData = await api<Version[]>(
 			`/api/agents/${agent.id}/versions`,
 			identity,
@@ -162,60 +226,76 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 	}
 
 	function handleEditProviderChange(newProv: string) {
-		setEditProvider(newProv);
-		const defaultM =
-			newProv === "google" ? "gemini-3.5-flash-lite" : "gpt-4o-mini";
-		setEditModel(defaultM);
+		let parsed: Record<string, unknown>;
 		try {
-			const parsed = JSON.parse(configText);
-			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-				const updated = {
-					...parsed,
-					voice: {
-						...(typeof parsed.voice === "object" && parsed.voice !== null
-							? (parsed.voice as Record<string, unknown>)
-							: {}),
-						llm_provider: newProv,
-						llm_model: defaultM,
-					},
-				};
-				setConfigText(JSON.stringify(updated, null, 2));
-				setError("");
+			const raw = JSON.parse(configText);
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+				setError(
+					"Cannot update provider in malformed JSON: Configuration must be a JSON object.",
+				);
+				return;
 			}
+			parsed = raw as Record<string, unknown>;
 		} catch (e) {
 			setError(
 				`Cannot update provider in malformed JSON: ${
 					e instanceof Error ? e.message : String(e)
 				}`,
 			);
+			return;
 		}
+
+		const defaultM =
+			newProv === "google" ? "gemini-3.5-flash-lite" : "gpt-4o-mini";
+		const updated = {
+			...parsed,
+			voice: {
+				...(typeof parsed.voice === "object" && parsed.voice !== null
+					? (parsed.voice as Record<string, unknown>)
+					: {}),
+				llm_provider: newProv,
+				llm_model: defaultM,
+			},
+		};
+		setConfigText(JSON.stringify(updated, null, 2));
+		setEditProvider(newProv);
+		setEditModel(defaultM);
+		setError("");
 	}
 
 	function handleEditModelChange(newModel: string) {
-		setEditModel(newModel);
+		let parsed: Record<string, unknown>;
 		try {
-			const parsed = JSON.parse(configText);
-			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-				const updated = {
-					...parsed,
-					voice: {
-						...(typeof parsed.voice === "object" && parsed.voice !== null
-							? (parsed.voice as Record<string, unknown>)
-							: {}),
-						llm_provider: editProvider,
-						llm_model: newModel,
-					},
-				};
-				setConfigText(JSON.stringify(updated, null, 2));
-				setError("");
+			const raw = JSON.parse(configText);
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+				setError(
+					"Cannot update model in malformed JSON: Configuration must be a JSON object.",
+				);
+				return;
 			}
+			parsed = raw as Record<string, unknown>;
 		} catch (e) {
 			setError(
 				`Cannot update model in malformed JSON: ${
 					e instanceof Error ? e.message : String(e)
 				}`,
 			);
+			return;
 		}
+
+		const updated = {
+			...parsed,
+			voice: {
+				...(typeof parsed.voice === "object" && parsed.voice !== null
+					? (parsed.voice as Record<string, unknown>)
+					: {}),
+				llm_provider: editProvider,
+				llm_model: newModel,
+			},
+		};
+		setConfigText(JSON.stringify(updated, null, 2));
+		setEditModel(newModel);
+		setError("");
 	}
 
 	function handleConfigTextChange(newText: string) {
@@ -223,18 +303,13 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 		try {
 			const parsed = JSON.parse(newText);
 			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-				setError("");
-				if (parsed.voice && typeof parsed.voice === "object") {
-					const voice = parsed.voice as Record<string, unknown>;
-					if (
-						typeof voice.llm_provider === "string" &&
-						(voice.llm_provider === "openai" || voice.llm_provider === "google")
-					) {
-						setEditProvider(voice.llm_provider);
-						if (typeof voice.llm_model === "string") {
-							setEditModel(voice.llm_model);
-						}
-					}
+				const voiceCheck = validateVoiceConfig(parsed);
+				if (voiceCheck.valid) {
+					setError("");
+					setEditProvider(voiceCheck.effectiveProvider);
+					setEditModel(voiceCheck.effectiveModel);
+				} else {
+					setError(voiceCheck.error ?? "Unsupported voice LLM pair.");
 				}
 			}
 		} catch {
@@ -280,6 +355,11 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 			);
 			return;
 		}
+		const voiceCheck = validateVoiceConfig(parsed);
+		if (!voiceCheck.valid) {
+			setError(voiceCheck.error ?? "Unsupported voice LLM pair.");
+			return;
+		}
 		void run(async () => {
 			const agent = await api<Agent>(
 				`/api/agents/${selected.id}/draft`,
@@ -294,10 +374,7 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 	}
 
 	const savedDraftVoice = extractVoice(selected?.config);
-	const supportedForEdit = SUPPORTED_MODELS[editProvider] ?? [];
-	const editModelOptions = supportedForEdit.some((m) => m.id === editModel)
-		? supportedForEdit
-		: [...supportedForEdit, { id: editModel, label: editModel }];
+	const editModelOptions = SUPPORTED_MODELS[editProvider] ?? [];
 
 	return (
 		<section aria-label="Agent configurations">
@@ -477,6 +554,11 @@ export function AgentEditor({ identity }: { identity: Identity }) {
 										Array.isArray(parsed)
 									) {
 										setError("Configuration must be a JSON object.");
+										return;
+									}
+									const voiceCheck = validateVoiceConfig(parsed);
+									if (!voiceCheck.valid) {
+										setError(voiceCheck.error ?? "Unsupported voice LLM pair.");
 										return;
 									}
 									void run(async () => {
