@@ -72,3 +72,49 @@ outbound call. When an owned number is ported, deactivate its route, update
 `INBOUND_SIP_ALLOWED_ADDRESSES` for the new carrier, restart the API, and
 reactivate the same inventory row with the new carrier label. See
 `docs/sessions.md` for API and session direction contracts.
+
+## VF-011 Voice LLM selection in agent form
+
+The web management console (`AgentEditor`) provides visible, labelled form controls
+for LLM provider and model selection during both agent creation and editing,
+without requiring direct JSON manipulation.
+
+### Form controls and UI preset
+- **Creation preset**: The new-agent form initializes with the owner-selected browser-pilot preset
+  Google (`llm_provider: "google"`) and Gemini 3.5 Flash-Lite (`llm_model: "gemini-3.5-flash-lite"`).
+  This preset is strictly a UI default; backend defaults (`openai / gpt-4o-mini`) remain unchanged.
+- **Provider & model options**: Controls are labelled `LLM provider` and `LLM model`.
+  Selecting a provider restricts the model choices to those permitted by the server contract:
+  - `google`: `gemini-3.5-flash-lite`, `gemini-2.5-flash-lite` (legacy snapshot support)
+  - `openai`: `gpt-4o-mini`
+- **Explicit selection**: The selected pair is displayed clearly before submission (e.g. `Selected LLM: Google / gemini-3.5-flash-lite`).
+  The UI never silently substitutes OpenAI when Google is chosen. The availability of an option does
+  not imply the model is free, authenticated, or verified.
+- **Coherent state & field preservation**: Form controls and advanced configuration JSON share one coherent state.
+  Changing the provider or model in the form updates the JSON representation while preserving all other configuration
+  fields (`instructions`, `locale`, `timezone`, `provider_references`, `tool_allowlist`, `enabled_modules`, `branding`,
+  session limits, and retention policy). Manual edits to valid JSON synchronize back to the form controls.
+- **Malformed JSON protection**: If the configuration JSON is invalid or malformed, the editor displays a visible error alert
+  and rejects the save operation before sending an API request, preventing accidental configuration destruction.
+- **Draft vs. Active separation**: The saved draft model (`Draft LLM`) is displayed separately from the locally active
+  version model (`Local active LLM`). Saving a draft updates only the draft row and never triggers publication or activation.
+  If no local binding exists or active model details cannot be retrieved, the UI explicitly displays `Local active LLM: unavailable`.
+- **Role authorization**: Viewers have read-only access. When signed in as a viewer, configuration creation, editing, draft saving,
+  import, publication, and activation controls are hidden. The configuration JSON is displayed as preformatted text.
+
+### Owner acceptance steps
+
+1. Sign in to a disposable local stack as an operator or admin (`vf001-admin@example.com`).
+2. Navigate to Agents and verify that the Create agent form displays labelled `LLM provider` and `LLM model` controls
+   defaulting to `Google / gemini-3.5-flash-lite`, with the selected pair visible before submission.
+3. Enter agent name and instructions, submit creation, and confirm that the created draft has `Draft LLM: google / gemini-3.5-flash-lite`
+   and the draft JSON contains `voice.llm_provider="google"` and `voice.llm_model="gemini-3.5-flash-lite"`.
+4. Publish the draft and activate v1 locally. Confirm `Local active version: 1` and `Local active LLM: google / gemini-3.5-flash-lite`.
+5. Switch the draft's LLM provider to `OpenAI` (`gpt-4o-mini`), save the draft, and confirm that:
+   - `Draft LLM` updates to `openai / gpt-4o-mini`.
+   - `Local active version` remains `1` and `Local active LLM` remains `google / gemini-3.5-flash-lite`.
+   - All unrelated fields (e.g. `locale`, `timezone`, `tool_allowlist`) in the JSON are preserved intact.
+   - Reopening or re-exporting published versions shows unchanged snapshots.
+   - Entering invalid JSON produces a visible alert and does not perform a destructive save.
+6. Sign in as a viewer and verify that configurations can be inspected, but no create, edit, save, publish, import, or activate controls are visible.
+7. Merge and live deployment remain subsequent explicit owner actions outside this task.
