@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "VF-011-PROVIDER-FORM",
+  "title": "Choose the voice LLM in the agent form without editing JSON",
+  "outcome": "An operator can deliberately create, edit, publish and activate a Google/Gemini voice configuration through visible form controls, while existing published configurations remain unchanged.",
+  "acceptance": [
+    "Creation and editing expose labelled LLM provider/model controls. New-agent form starts with the owner-selected browser-pilot preset Google / gemini-3.5-flash-lite; this is a UI preset, not a change to backend defaults or an approval of a production provider.",
+    "Submitting the creation form sends the selected valid voice.llm_provider/llm_model pair in config. Show the selected pair before submission; never silently substitute OpenAI. Do not claim a model is authenticated, free or available merely because it is selectable.",
+    "Loading an existing OpenAI configuration preserves it until explicitly edited. Legacy Gemini 2.5 snapshots remain readable and unchanged; do not rewrite published rows or active bindings when opening the editor.",
+    "Changing the provider offers only models allowed by the current server contract and uses a valid explicit pair. Invalid or malformed advanced JSON produces a visible error and does not send a destructive save. Form and advanced JSON have one coherent state, without losing instructions, locale, tools, references or unrelated configuration fields.",
+    "Show the saved draft model separately from the locally active version model, or clearly indicate that active model details are unavailable. Saving draft never implies publication/activation. Existing optimistic concurrency errors remain visible without discarding unsaved changes.",
+    "Viewer cannot create or change configurations; operator/admin behavior continues to use the existing authorized endpoints and CSRF protection. No credentials or environment values are introduced in frontend code, fixtures or logs.",
+    "Add a synthetic browser regression covering Google creation, changing an existing OpenAI draft to Google, publication/activation with correct active version, preservation of unrelated JSON fields, and viewer read-only behavior. Tests do not contact LiveKit, Gemini, STT or TTS.",
+    "Update configuration documentation and provide exact owner acceptance steps. No deployment, live calls, dependency updates, backend/provider changes, automatic publication or automatic model fallback are included."
+  ],
+  "scope": [
+    "apps/web/src/AgentEditor.tsx",
+    "tests/e2e/agents.spec.ts",
+    "docs/configuration.md"
+  ],
+  "dependencies": [],
+  "base_sha": "04d9178657210ba7d70caf5ddf24fabdf10ef3af",
+  "check_names": [
+    "web-lint",
+    "web-types",
+    "web-build",
+    "python-unit",
+    "browser-e2e"
+  ],
+  "max_attempts": 2,
+  "provider": "antigravity",
+  "model": "gemini-3.8-flash-medium"
+}
