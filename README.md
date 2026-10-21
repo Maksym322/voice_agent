@@ -1,5 +1,9 @@
 # Voice Fleet
 
+For the existing home laptop installation, see the reviewed but unexecuted
+[upgrade preparation](docs/home-upgrade.md). Development orchestration metadata
+is in `.fleet/`; it does not turn this product into an AI server manager.
+
 Self-hosted voice-agent platform for one organization per independent installation.
 VF-001 provides the API and sign-in dashboard. VF-002 adds agent drafts,
 immutable published versions, and environment bindings. VF-003 adds browser

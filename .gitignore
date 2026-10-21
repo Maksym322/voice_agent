@@ -15,3 +15,5 @@ playwright-report/
 recordings/
 artifacts/
 private-clients/
+
+.fleet/runs/

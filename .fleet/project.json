@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "project_id": "voice-fleet",
+  "context_files": [
+    "AGENTS.md",
+    "README.md",
+    "tasks/VF-010.md",
+    "docs/architecture.md",
+    "docs/migrations.md",
+    "docs/configuration.md"
+  ],
+  "checks": [
+    {
+      "name": "python-lint",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "ruff",
+        "check",
+        "apps",
+        "tests",
+        "scripts"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "name": "python-format",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "ruff",
+        "format",
+        "--check",
+        "apps",
+        "tests",
+        "scripts"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "name": "python-types",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "mypy",
+        "apps/api/src",
+        "apps/voice-worker/src",
+        "tests"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "name": "python-unit",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "python",
+        "-c",
+        "import os,pytest; os.environ['DATABASE_URL']='postgresql+psycopg://synthetic:synthetic@127.0.0.1:1/voice_fleet_test'; os.environ['APP_ORIGIN']='http://localhost:8080'; raise SystemExit(pytest.main(['tests/unit','-q']))"
+      ],
+      "timeout_seconds": 300
+    }
+  ],
+  "secret_names": []
+}
