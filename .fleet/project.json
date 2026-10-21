@@ -4,10 +4,10 @@
   "context_files": [
     "AGENTS.md",
     "README.md",
-    "tasks/VF-010.md",
     "docs/architecture.md",
     "docs/migrations.md",
-    "docs/configuration.md"
+    "docs/configuration.md",
+    "tasks/VF-011.md"
   ],
   "checks": [
     {
@@ -75,6 +75,47 @@
         "import os,pytest; os.environ['DATABASE_URL']='postgresql+psycopg://synthetic:synthetic@127.0.0.1:1/voice_fleet_test'; os.environ['APP_ORIGIN']='http://localhost:8080'; raise SystemExit(pytest.main(['tests/unit','-q']))"
       ],
       "timeout_seconds": 300
+    },
+    {
+      "name": "web-lint",
+      "argv": [
+        "{python}",
+        "-c",
+        "import shutil,subprocess; executable=shutil.which('npm'); assert executable, 'npm unavailable'; raise SystemExit(subprocess.call([executable,'run','lint']))"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "name": "web-types",
+      "argv": [
+        "{python}",
+        "-c",
+        "import shutil,subprocess; executable=shutil.which('npm'); assert executable, 'npm unavailable'; raise SystemExit(subprocess.call([executable,'run','typecheck']))"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "name": "web-build",
+      "argv": [
+        "{python}",
+        "-c",
+        "import shutil,subprocess; executable=shutil.which('npm'); assert executable, 'npm unavailable'; raise SystemExit(subprocess.call([executable,'run','build']))"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "name": "browser-e2e",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "python",
+        "scripts/e2e.py"
+      ],
+      "timeout_seconds": 1200
     }
   ],
   "secret_names": []
