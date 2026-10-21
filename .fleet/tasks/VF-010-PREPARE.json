@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "VF-010-PREPARE",
+  "title": "Prepare the existing laptop upgrade safely",
+  "outcome": "A reviewable provider-neutral runbook for updating the old home installation to the current tested Voice Fleet revision without losing existing data or pretending live voice acceptance.",
+  "acceptance": [
+    "Create docs/home-upgrade.md with an explicit inventory/preparation phase, clearly separating historical evidence from unexecuted host checks.",
+    "Use the exact existing project voice-fleet-home, source /home/waks/projects/voice, old snapshot dcc59c9, target upstream 23c633e16dc5c9a9ed27f643852a5b1977c3b793, and named volume voice-fleet-home_db_data. Require verification of those values before mutation.",
+    "Provide concrete Linux commands to create a restricted custom-format PostgreSQL backup, verify it by restoring into a separately named disposable database, and compare schema plus synthetic/aggregate counts without exposing personal data or credentials.",
+    "Stage the target in a separate release directory; preserve the existing .env and home override without printing their contents; document migration 0002 through 0007, existing user/agent preservation checks, loopback origin, readiness, and explicitly unconfigured worker behavior.",
+    "Explain rollback as paired old code/images plus verified pre-upgrade DB restore in maintenance, not merely reverting code after forward migrations. Never down --volumes, destroy the real volume, downgrade schema automatically, create real accounts, enable paid services or make live API/SIP calls.",
+    "State current blocker accurately: SSH user waks lacks docker group access and sudo -n true reports a password is required. The owner must run privileged steps interactively; do not change permissions or sudoers.",
+    "Include executable check commands from the repository and manual acceptance (admin login, draft/publish/activate, restart persistence). Do not claim the upgrade, backup, restore, migrations or owner acceptance happened."
+  ],
+  "scope": [
+    "docs/home-upgrade.md"
+  ],
+  "dependencies": [],
+  "base_sha": "23c633e16dc5c9a9ed27f643852a5b1977c3b793",
+  "check_names": [
+    "python-lint",
+    "python-format",
+    "python-types",
+    "python-unit"
+  ],
+  "max_attempts": 2,
+  "provider": "antigravity",
+  "model": "gemini-3.8-flash-low"
+}
