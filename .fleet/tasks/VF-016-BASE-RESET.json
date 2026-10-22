@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "VF-016-BASE-RESET",
+  "title": "Explicit reset of an agent draft to a versioned base preset",
+  "outcome": "Implement the observable behavior in tasks/VF-016.md while preserving real installation data.",
+  "acceptance": [
+    "Read and satisfy the complete English specification in tasks/VF-016.md; its boundaries and negative criteria are mandatory.",
+    "AC-1 / Read the built-in preset repeatedly and after restart / Stable ID/version and identical normalized payload; no user/agent mutations / Unit and disposable PostgreSQL/API tests",
+    "AC-2 / Customize and save an agent, then confirm reset with its current revision / Draft exactly equals the selected preset; revision increases once; name/ID stay; one truthful audit event / API integration and browser test",
+    "AC-3 / Cancel confirmation, use viewer/anonymous access, omit CSRF, use foreign origin, stale revision, unknown ID/version, or invalid preset / No draft/binding/history mutation; existing auth/error conventions apply; stale revision is 409 / Negative API/browser tests",
+    "AC-4 / Race reset against a save/publish using the same revision / Only the serialized valid mutation wins; stale competitor is rejected; no lost update / PostgreSQL concurrency test",
+    "AC-5 / Reset while an agent has a published/active version and a synthetic active session / Published JSON bytes, binding/version IDs and session pin remain unchanged; no room cleanup or provider request / Transactional integration assertions with explicit synthetic gateway",
+    "AC-6 / Restart API/web/worker after reset, then explicitly publish and activate / Draft survives restart; activation affects only future sessions; existing session remains pinned; prior version remains exportable and bindable / Disposable restart integration/browser flow",
+    "AC-7 / Compare seeded data before/after reset / Same users/password hashes, sessions/events/diagnostics, saved views and historical versions; only intended draft/revision/audit changes; environment secret sentinels unchanged / Disposable database/state comparison; no credential values in report",
+    "AC-8 / Remove an optional customization file or omit it at startup / No implicit reset, deletion, reseeding, binding change, or account change / Restart regression; document that explicit reset is required",
+    "Use only synthetic disposable data. No home SSH, real .env, provider calls, paid fallback, merge, deployment or automatic owner acceptance. Delegate only bounded subtasks when useful; no two writers in one checkout."
+  ],
+  "scope": [
+    "apps/api/src/voice_fleet_api",
+    "apps/web/src/AgentEditor.tsx",
+    "tests",
+    "scripts/check_startup.py",
+    "docs/configuration.md",
+    "tasks/VF-016.md"
+  ],
+  "dependencies": [
+    "VF-014-INSTALLATION-IDENTITY",
+    "VF-015-DURABLE-HISTORY"
+  ],
+  "base_sha": "639c72a2e72f78d5b4e89560041b0d38a3d25dd0",
+  "check_names": [
+    "python-lint",
+    "python-format",
+    "python-types",
+    "python-unit",
+    "web-lint",
+    "web-types",
+    "web-build",
+    "browser-e2e",
+    "python-integration",
+    "startup"
+  ],
+  "max_attempts": 2,
+  "provider": "antigravity",
+  "model": "gemini-3.8-flash-medium"
+}

@@ -29,3 +29,15 @@ have not started.
 
 Окремий напрям: мінімальний voice-fleet-dev, після визначення процесу.
 Перші три задачі деталізовані в окремих файлах.
+
+## Owner-requested persistence and customization batch, 2026-10-22
+
+Planned only; none is implemented, queued, accepted or deployed by this entry.
+See `persistence-work-batch.md` for ownership, dependencies and dispatch gates.
+
+- VF-014: distinguish persistent/disposable installations and isolate local logins.
+- VF-015: fresh and understandable saved history, plus durable database regression.
+- VF-016: explicit versioned base reset of an agent draft; depends on accepted/integrated VF014 and VF015.
+- VF-017: portable single-agent client configuration package; depends on accepted/integrated VF016.
+
+The read-only home database findings are in `docs/persistence-incident-2026-10-22.md`.

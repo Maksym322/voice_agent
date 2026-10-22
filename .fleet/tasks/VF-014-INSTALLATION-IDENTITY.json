@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "VF-014-INSTALLATION-IDENTITY",
+  "title": "Installation identity and isolated preview logins",
+  "outcome": "Implement the observable behavior in tasks/VF-014.md while preserving real installation data.",
+  "acceptance": [
+    "Read and satisfy the complete English specification in tasks/VF-014.md; its boundaries and negative criteria are mandatory.",
+    "AC-1 / Open a persistent installation and a disposable preview / Login and shell clearly distinguish their configured identities and data lifetime; only the preview warns that its accounts/history will be removed / Built browser test and owner guide",
+    "AC-2 / Log into two stacks on different localhost ports in one browser context, then reload and log out of either / Both remain logged in before logout; only the chosen stack loses authentication; no token is accepted by the other stack / Real HTTP/Chromium regression, not only route mocks",
+    "AC-3 / Repeat AC-2 using two 127.0.0.1 origins / Cookie lookup, login and logout remain coherent and isolated / Parameterized automated regression",
+    "AC-4 / Existing persistent installation uses the default cookie setting / Existing valid vf_session login remains usable; choosing a custom name changes login/read/logout coherently without rewriting account data / Authentication integration regression",
+    "AC-5 / Configure distinct cookie names on two persistent origins / Login isolation works without requiring disposable mode; helper-generated previews receive unique names automatically / Authentication and helper tests",
+    "AC-6 / Supply invalid identity/mode metadata or request identity anonymously / Invalid settings fail clearly; public metadata contains only intended labels/lifetime, never database URLs, provider secrets or filesystem paths / Settings/API unit tests",
+    "AC-7 / Finish a disposable test / Only its uniquely allocated test resources are removed; persistent installation resources are never selected / Helper boundary assertions and recorded cleanup evidence",
+    "Use only synthetic disposable data. No home SSH, real .env, provider calls, paid fallback, merge, deployment or automatic owner acceptance. Delegate only bounded subtasks when useful; no two writers in one checkout."
+  ],
+  "scope": [
+    "apps/api/src/voice_fleet_api/config.py",
+    "apps/api/src/voice_fleet_api/main.py",
+    "apps/web/src/App.tsx",
+    "apps/web/src",
+    "compose.yaml",
+    ".env.example",
+    "scripts/isolated_stack.py",
+    "tests",
+    "docs",
+    "tasks/VF-014.md"
+  ],
+  "dependencies": [],
+  "base_sha": "639c72a2e72f78d5b4e89560041b0d38a3d25dd0",
+  "check_names": [
+    "python-lint",
+    "python-format",
+    "python-types",
+    "python-unit",
+    "web-lint",
+    "web-types",
+    "web-build",
+    "browser-e2e",
+    "python-integration",
+    "startup"
+  ],
+  "max_attempts": 2,
+  "provider": "antigravity",
+  "model": "gemini-3.8-flash-medium"
+}

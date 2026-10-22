@@ -5,9 +5,10 @@
     "AGENTS.md",
     "README.md",
     "docs/architecture.md",
-    "docs/migrations.md",
+    "docs/decisions.md",
     "docs/configuration.md",
-    "tasks/VF-011.md"
+    "docs/operator-console.md",
+    "docs/persistence-incident-2026-10-22.md"
   ],
   "checks": [
     {
@@ -116,6 +117,48 @@
         "scripts/e2e.py"
       ],
       "timeout_seconds": 1200
+    },
+    {
+      "name": "python-integration",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "python",
+        "scripts/check_integration.py"
+      ],
+      "timeout_seconds": 1200
+    },
+    {
+      "name": "startup",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "python",
+        "scripts/check_startup.py"
+      ],
+      "timeout_seconds": 1200
+    },
+    {
+      "name": "client-package",
+      "argv": [
+        "uv",
+        "run",
+        "--python",
+        "3.12.10",
+        "--frozen",
+        "--all-packages",
+        "python",
+        "scripts/check_client_package.py"
+      ],
+      "timeout_seconds": 1800
     }
   ],
   "secret_names": []

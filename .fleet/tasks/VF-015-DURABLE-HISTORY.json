@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "VF-015-DURABLE-HISTORY",
+  "title": "Fresh history and durable conversation data",
+  "outcome": "Implement the observable behavior in tasks/VF-015.md while preserving real installation data.",
+  "acceptance": [
+    "Read and satisfy the complete English specification in tasks/VF-015.md; its boundaries and negative criteria are mandatory.",
+    "AC-1 / Stay on History while a synthetic voice session transitions to ended or error in the backend / The saved row appears within the documented bounded refresh interval without navigation; manual Refresh retrieves it immediately / Browser test with controlled API transitions and real PostgreSQL API integration evidence",
+    "AC-2 / A successful terminal session has transcript/event rows and no diagnostics / History lists it and opens its persisted detail; Diagnostics explicitly says no diagnostics rather than implying the session was not saved / Browser and API assertions",
+    "AC-3 / A terminal session is older than the Board five-minute window but within retention / Board omits it, History includes it and the UI explains the distinction / Timestamp-controlled integration and browser regression",
+    "AC-4 / Change filters rapidly while requests finish out of order / Only results for the latest active filter/page appear; cursor remains coherent and a filter change starts at the first page / Delayed-response browser regression",
+    "AC-5 / Refresh while viewing filtered/paginated history or diagnostics / Current filters remain; errors are visible; reset filters deliberately returns to the first unfiltered page / Browser negative cases",
+    "AC-6 / Admin, operator and viewer request another user's saved history/details/events/logs / Admin can inspect all; operator sees only owned rows; viewer is denied; SQL authorization remains before pagination / Existing and extended integration tests",
+    "AC-7 / Enter and leave History/Logs repeatedly and close a selected detail / No duplicate polling, leaked intervals, stale updates or lost selected-record context; network activity stays bounded / Browser request-count/timing assertions",
+    "AC-8 / API fails or returns an empty filtered page / The user can distinguish retrieval failure, genuinely empty results and active filtering; no fake success or transcript is shown / Browser tests",
+    "AC-9 / Restart API/web, restart PostgreSQL, recreate containers with the same disposable volume and rerun migrations / The same account still authenticates; identical agent/version/binding/session/event/diagnostic IDs and values remain; authorized History/events/logs return retained records / Extended isolated startup regression",
+    "Use only synthetic disposable data. No home SSH, real .env, provider calls, paid fallback, merge, deployment or automatic owner acceptance. Delegate only bounded subtasks when useful; no two writers in one checkout."
+  ],
+  "scope": [
+    "apps/web/src/Console.tsx",
+    "apps/web/src",
+    "scripts/check_startup.py",
+    "tests",
+    "docs/operator-console.md",
+    "tasks/VF-015.md"
+  ],
+  "dependencies": [],
+  "base_sha": "639c72a2e72f78d5b4e89560041b0d38a3d25dd0",
+  "check_names": [
+    "python-lint",
+    "python-format",
+    "python-types",
+    "python-unit",
+    "web-lint",
+    "web-types",
+    "web-build",
+    "browser-e2e",
+    "python-integration",
+    "startup"
+  ],
+  "max_attempts": 2,
+  "provider": "antigravity",
+  "model": "gemini-3.8-flash-medium"
+}

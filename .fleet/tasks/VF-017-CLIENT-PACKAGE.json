@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "VF-017-CLIENT-PACKAGE",
+  "title": "Portable, validated client agent configuration package",
+  "outcome": "Implement the observable behavior in tasks/VF-017.md while preserving real installation data.",
+  "acceptance": [
+    "Read and satisfy the complete English specification in tasks/VF-017.md; its boundaries and negative criteria are mandatory.",
+    "AC-1 / Export a published configured agent from A / Envelope validates; payload matches that immutable snapshot; no resolved secrets, source DB IDs, accounts, history or bindings / Unit and API integration tests with synthetic secret sentinels",
+    "AC-2 / Preview and confirm import into B with current revision / Preview names target and complete resulting config; only target draft/revision/audit change; another refresh returns same config / Browser/API integration",
+    "AC-3 / Import malformed/oversized JSON, unsupported package/config version, unknown fields, scalar/array/null config, raw secret fields/values, or invalid provider/model pair / Clear sanitized rejection; no partial draft or audit success; secrets are not echoed / Negative parser/API/browser tests",
+    "AC-4 / Use anonymous/viewer, missing CSRF/foreign origin, or stale/concurrent target revision / Server rejects mutation with existing auth/conflict policy; prior/unsaved content preserved / Negative authorization and PostgreSQL concurrency tests",
+    "AC-5 / Export/import with missing local provider credentials / Valid draft can be stored; UI identifies required references without values; no provider/network request or activation / Tests with network gateway forbidden",
+    "AC-6 / Run independent A and B, import A's package into B and customize B's draft / A stays unchanged; B has independent users/history/secrets/bindings; no shared volume or DB; neither package action activates a version / Two-stack runner with explicit DB/volume identity assertions",
+    "AC-7 / Explicitly reset B to base with VF-016 after import / Only B's draft becomes the selected base; A's config and both installs' users/history/active versions remain intact / Two-stack integration plus owner UI acceptance",
+    "AC-8 / Restart both installations and remove the downloaded/local package file / Both retain saved DB drafts/users/history; no file-driven reset or reimport occurs / Two-stack runner restart phase",
+    "AC-9 / Use existing plain AgentConfig export/import / Existing clients and immutable published snapshot behavior remain compatible; package metadata never changes an existing session pin / Existing regression suite plus new package tests",
+    "Use only synthetic disposable data. No home SSH, real .env, provider calls, paid fallback, merge, deployment or automatic owner acceptance. Delegate only bounded subtasks when useful; no two writers in one checkout."
+  ],
+  "scope": [
+    "apps/api/src/voice_fleet_api",
+    "apps/web/src/AgentEditor.tsx",
+    "scripts/check_client_package.py",
+    "tests",
+    "docs",
+    "tasks/VF-017.md"
+  ],
+  "dependencies": [
+    "VF-016-BASE-RESET"
+  ],
+  "base_sha": "639c72a2e72f78d5b4e89560041b0d38a3d25dd0",
+  "check_names": [
+    "python-lint",
+    "python-format",
+    "python-types",
+    "python-unit",
+    "web-lint",
+    "web-types",
+    "web-build",
+    "browser-e2e",
+    "python-integration",
+    "startup",
+    "client-package"
+  ],
+  "max_attempts": 2,
+  "provider": "antigravity",
+  "model": "gemini-3.8-flash-medium"
+}

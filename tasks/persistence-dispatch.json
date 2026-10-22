@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "planning_base": "639c72a2e72f78d5b4e89560041b0d38a3d25dd0",
+  "execution": "not_started",
+  "tasks": [
+    {
+      "task_id": "VF-014-INSTALLATION-IDENTITY",
+      "state": "ready_for_isolated_worktree",
+      "dependencies": [],
+      "implementation_model": "gemini-3.8-flash-medium",
+      "review_model": "claude-sonnet-5-5-medium",
+      "enqueued": false,
+      "started": false
+    },
+    {
+      "task_id": "VF-015-DURABLE-HISTORY",
+      "state": "ready_for_isolated_worktree",
+      "dependencies": [],
+      "implementation_model": "gemini-3.8-flash-medium",
+      "review_model": "claude-sonnet-5-5-medium",
+      "enqueued": false,
+      "started": false
+    },
+    {
+      "task_id": "VF-016-BASE-RESET",
+      "state": "blocked_on_accepted_integrated_dependencies",
+      "dependencies": [
+        "VF-014-INSTALLATION-IDENTITY",
+        "VF-015-DURABLE-HISTORY"
+      ],
+      "implementation_model": "gemini-3.8-flash-medium",
+      "review_model": "claude-sonnet-5-5-medium",
+      "enqueued": false,
+      "started": false
+    },
+    {
+      "task_id": "VF-017-CLIENT-PACKAGE",
+      "state": "blocked_on_accepted_integrated_dependencies",
+      "dependencies": [
+        "VF-016-BASE-RESET"
+      ],
+      "implementation_model": "gemini-3.8-flash-medium",
+      "review_model": "claude-sonnet-5-5-medium",
+      "enqueued": false,
+      "started": false
+    }
+  ]
+}
