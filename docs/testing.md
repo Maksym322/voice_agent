@@ -19,6 +19,12 @@ The implementation follows the current [FastAPI](https://fastapi.tiangolo.com/),
 [Vite 8](https://vite.dev/blog/announcing-vite8), and
 [Playwright](https://playwright.dev/docs/intro) documentation.
 
+VF-002 adds schema unit tests and PostgreSQL HTTP integration tests for draft
+validation, import, publication, immutable rows, viewer access, stale revisions,
+simultaneous publication/activation, and rollback. The integration helper runs
+pytest using its current Python environment, so `uv run --frozen --all-packages
+python scripts/check_integration.py` still uses the pinned environment.
+
 1. Unit: валідація, permissions, версії, бізнес-правила.
 2. Integration: PostgreSQL, конкурентна активація, idempotency, міграції.
 3. UI E2E: створити агента -> опублікувати -> переглянути сесію.

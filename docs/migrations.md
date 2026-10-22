@@ -23,3 +23,12 @@ run `docker compose down --volumes` to discard its synthetic data. Never run
 that command against a real installation. VF-001 does not define an automated
 production rollback procedure.
 
+## VF-002
+
+Revision `0002_agent_configurations` adds `agents`, `agent_versions`,
+`deployment_bindings`, and `audit_events`. It retains existing users and login
+sessions. A trigger rejects updates and deletes to published version rows.
+Downgrading this revision removes all agent configurations and audit history;
+back up the database and use application-level binding rollback for normal
+configuration rollback.
+

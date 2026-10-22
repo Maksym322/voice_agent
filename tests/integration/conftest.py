@@ -60,7 +60,12 @@ def client(database: sessionmaker[Session]) -> Iterator[TestClient]:
 
     engine = database.kw["bind"]
     with engine.begin() as connection:
-        connection.execute(text("TRUNCATE login_sessions, users"))
+        connection.execute(
+            text(
+                "TRUNCATE audit_events, deployment_bindings, agent_versions, agents, "
+                "login_sessions, users"
+            )
+        )
 
     def test_db() -> Iterator[Session]:
         with database() as session:
