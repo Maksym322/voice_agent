@@ -25,7 +25,7 @@
     "tasks/VF-015.md"
   ],
   "dependencies": [],
-  "base_sha": "639c72a2e72f78d5b4e89560041b0d38a3d25dd0",
+  "base_sha": "ea2d7c622a1950d06217d9a46166c3f7daee4d9f",
   "check_names": [
     "python-lint",
     "python-format",
@@ -38,7 +38,7 @@
     "python-integration",
     "startup"
   ],
-  "max_attempts": 2,
+  "max_attempts": 1,
   "provider": "antigravity",
   "model": "gemini-3.8-flash-medium"
 }
