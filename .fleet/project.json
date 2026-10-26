@@ -8,7 +8,8 @@
     "docs/decisions.md",
     "docs/configuration.md",
     "docs/operator-console.md",
-    "docs/persistence-incident-2026-10-22.md"
+    "docs/persistence-incident-2026-10-22.md",
+    "docs/vf15-worker-assignment-20261026.md"
   ],
   "checks": [
     {
